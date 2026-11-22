@@ -23,10 +23,15 @@ Open the local URL printed by Vite. A supported browser shows the animated firef
 | `npm run build` | Type-checks and produces the static browser files in `dist/` |
 | `npm run preview` | Serves that build locally |
 | `npm run test:browser` | Builds, starts an isolated local preview on port 4173 and runs the Chromium tests |
+| `npm run build:edge` | Builds the browser files and writes the separate Edge script and artifact manifest to `dist-edge/` |
+| `npm run preview:edge` | Runs the generated Edge script with a local asset origin on port 4174 after a build |
+| `npm run test:edge` | Checks the Edge route contract with controlled origin responses |
+| `npm run test:browser:edge` | Builds and runs the Chromium suite against the local Edge preview |
 
 For the browser tests, install the Chromium headless shell once with `npm exec -- playwright install --only-shell chromium`. On Linux, Playwright may also require system libraries. Its `install-deps chromium` command installs those on a developer machine with package-management permission. Port 4173 must be free for the tests. Set `P01_CAPTURE=1` when running them to refresh the [mobile viewport capture](docs/evidence/p01-mobile.png).
 
 See the [phase status](docs/STATUS.md) for results and the next development milestone.
+See the [Edge runbook](edge/README.md) for local HTTP checks and the staging probe.
 
 | To find | Read |
 | --- | --- |
