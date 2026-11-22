@@ -99,24 +99,40 @@ test.describe('high-density viewport', () => {
 });
 
 test('reduced motion starts still and the player can resume and pause the scene', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T12:00:00Z') });
+  await page.clock.pauseAt(new Date('2026-01-01T12:01:00Z'));
+  // Keep the real WebGL buffer readable between frames in this test. Compositor
+  // screenshots can arrive a frame behind the render when the GPU is busy.
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.getContext = new Proxy(HTMLCanvasElement.prototype.getContext, {
+      apply(target, canvas, args) {
+        if (args[0] === 'webgl2') args[1] = { ...args[1], preserveDrawingBuffer: true };
+        return Reflect.apply(target, canvas, args);
+      },
+    });
+  });
   await page.goto('/');
   const canvas = page.locator('#glade');
+  const renderedFrame = () => canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL());
   const resume = page.getByRole('button', { name: 'Resume motion' });
   await expect(resume).toBeVisible();
-  const initial = await canvas.screenshot();
+  const initial = await renderedFrame();
   await resume.click();
   const pause = page.getByRole('button', { name: 'Pause motion' });
   await expect(pause).toBeVisible();
-  await expect.poll(async () => (await canvas.screenshot()).equals(initial)).toBe(false);
+  // The first frame establishes elapsed time. Advance another frame far enough
+  // to visibly move the wings, independent of the host's rendering speed.
+  await page.clock.fastForward(16);
+  await page.clock.fastForward(350);
+  expect(await renderedFrame() === initial, 'resume moved the firefly').toBe(false);
   await pause.click();
   await expect(resume).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect(resume).toBeVisible();
-  const pausedFrame = await canvas.screenshot();
-  await page.evaluate(() => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  }));
-  expect((await canvas.screenshot()).equals(pausedFrame)).toBe(true);
+  const pausedFrame = await renderedFrame();
+  await page.clock.fastForward(16);
+  await page.clock.fastForward(350);
+  expect(await renderedFrame() === pausedFrame, 'pause held the same rendered frame').toBe(true);
 });
 
 test('missing WebGL 2 gives a readable unsupported state', async ({ page }) => {
