@@ -112,6 +112,25 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   font-variant-numeric: tabular-nums;
 }
 #game-score[data-collecting="true"] { color: var(--gold); }
+#elixir {
+  position: absolute;
+  inset: auto 0 5rem;
+  margin-inline: auto;
+  width: 1.6rem;
+  height: 1.55rem;
+  border-radius: 45%;
+  border: 2px solid #fde2a6;
+  background: #e29832;
+  box-shadow: 0 0 1.2rem #f7ce7780;
+}
+#elixir::before {
+  content: "";
+  position: absolute;
+  inset: -.53rem .35rem auto;
+  height: .55rem;
+  border-radius: .1rem;
+  background: #fde2a6;
+}
 #mission-result {
   position: absolute;
   inset: 36% 1rem auto;
@@ -138,6 +157,9 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   margin: .2rem .3rem .2rem 0;
   padding: .5rem .8rem;
 }
+#forest-progress, #profile-notice { margin-block: .7rem; color: #c8d7c6; }
+#profile-notice { color: #f7ce77; }
+#profile-memory { min-height: 3rem; padding: .5rem .8rem; }
 #game-hint {
   inset: auto .8rem .8rem;
   max-width: 27rem;

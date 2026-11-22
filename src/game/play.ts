@@ -1,7 +1,7 @@
 import { TUNNEL_DEMO } from './content/fixtures';
 import { createAttempt, reduceAttempt } from './core/attempt';
 import { sweepLights } from './core/collection';
-import type { Anchor, GeneratedMission, Loadout } from './core/types';
+import type { Anchor, AttemptMode, GeneratedMission, Loadout } from './core/types';
 import { bindControls } from './input/controls';
 import { createExplorationWorld } from './render/exploration';
 import { createTunnelLights } from './render/lights';
@@ -26,6 +26,7 @@ export interface GameHud {
   target: number | null;
   result: string;
   storyWon: boolean;
+  carryingElixir: boolean;
   collecting: boolean;
   hint: string;
   action: string;
@@ -42,13 +43,20 @@ export function createGame(
   initialReducedMotion: boolean,
   showHud: (hud: GameHud) => void,
   redraw: () => void,
-  options: { mission?: GeneratedMission; loadout?: Loadout } = {},
+  options: {
+    mission?: GeneratedMission;
+    loadout?: Loadout;
+    restored?: number;
+    onSuccess?: (mission: GeneratedMission, mode: AttemptMode) => number;
+  } = {},
 ): GameView {
   const mission = options.mission ?? TUNNEL_DEMO;
   const demo = mission === TUNNEL_DEMO;
   const totalLights = mission.tunnels.reduce((sum, track) => sum + track.lights.length, 0);
   const entries = mission.tunnels.map(tunnel => ({ ...tunnel.entry, id: tunnel.id, radius: entryRadius }));
-  const world = createExplorationWorld({ entry: entries[0]!, entries, bounds });
+  const world = createExplorationWorld({ entry: entries[0]!, entries, bounds, story: !demo });
+  let restoration = options.restored ?? 0;
+  world.setRestoration(restoration);
   const routes = mission.tunnels.map(tunnel => {
     const travel = createTunnelView(world, tunnel);
     return { tunnel, travel, sparks: createTunnelLights(travel, tunnel) };
@@ -126,6 +134,7 @@ export function createGame(
       }
       if (attempt.phase === 'success') {
         returning = true;
+        if (options.onSuccess) restoration = options.onSuccess(mission, mode);
       } else if (!attempt.outcome && toEndMs - step < 1e-7) {
         distance = tunnel.length;
         attempt = reduceAttempt(attempt, { type: 'tunnel-finished' });
@@ -156,6 +165,7 @@ export function createGame(
     position = tunnel.exit;
     returning = false;
     returned = demo || attempt.outcome !== null;
+    if (returned) world.setRestoration(restoration);
     phaseTime = 0;
     distance = 0;
   }
@@ -305,6 +315,7 @@ export function createGame(
         ? 'Time ran out before you reached the target.'
         : 'There are too few lights left in the unopened tunnels to reach the target.';
     }
+    if (!demo && returning && attempt.outcome?.kind === 'success') return 'The lights formed an elixir. Returning to the guardian…';
     if (returning) return 'Returning to the clearing…';
     if (attempt.phase === 'drop') return 'Dropping into the tunnel…';
     if (attempt.phase === 'tunnel-ready') return 'Move the mouse, touch the tunnel, or press Left or Right to start.';
@@ -354,6 +365,7 @@ export function createGame(
         result: demo || returning || !attempt.outcome ? '' :
           attempt.outcome.kind === 'success' ? 'Mission complete' : 'Mission failed',
         storyWon: !demo && !returning && attempt.outcome?.kind === 'success',
+        carryingElixir: !demo && returning && attempt.outcome?.kind === 'success',
         collecting: visualMs - pickupMs < 230, hint: hint(ready),
         action: attempt.paused || returnPaused ? 'Resume' : returned || (attempt.outcome && !returning) ? 'Try again' : 'Pause',
       });

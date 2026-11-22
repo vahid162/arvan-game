@@ -2,7 +2,7 @@ import {
   BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight,
   DodecahedronGeometry, DoubleSide, Float32BufferAttribute, FogExp2, Group, HemisphereLight,
   InstancedMesh, Line, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D,
-  PerspectiveCamera, Plane, PlaneGeometry, Raycaster, RingGeometry, Scene, ShaderMaterial,
+  PerspectiveCamera, Plane, PlaneGeometry, Raycaster, RingGeometry, Scene, ShaderMaterial, SphereGeometry,
   Vector2, Vector3,
 } from 'three';
 import type { Material } from 'three';
@@ -11,7 +11,7 @@ import { makeFirefly } from './scene';
 
 interface Bounds { halfWidth: number; halfDepth: number }
 type Entrance = Anchor & { radius: number };
-interface ExplorationOptions { entry: Entrance; entries?: readonly (Entrance & { id: string })[]; bounds: Bounds }
+interface ExplorationOptions { entry: Entrance; entries?: readonly (Entrance & { id: string })[]; bounds: Bounds; story?: boolean }
 interface ExplorationFrame {
   position: Anchor;
   ready?: boolean;
@@ -88,7 +88,82 @@ function makeForest(bounds: Bounds) {
     stones.setColorAt(i, tint.setHex(stoneTones[i % stoneTones.length]!));
   }
   forest.add(trunk, needles, stones);
-  return forest;
+  const shaded = needles.instanceColor!.array.slice();
+  const sunlit = [new Color(0x43794c), new Color(0x629650), new Color(0x91b466)];
+  function restoreFoliage(front: number) {
+    for (let i = 0; i < needles.count; i++) {
+      const z = needles.instanceMatrix.array[i * 16 + 14]!;
+      const restored = MathUtils.smoothstep(z, front, front + 0.65);
+      tint.fromArray(shaded, i * 3).lerp(sunlit[i % 3]!, restored);
+      needles.setColorAt(i, tint);
+    }
+    needles.instanceColor!.needsUpdate = true;
+  }
+  return { forest, restoreFoliage };
+}
+
+// The owl and its torch stay at the same landmark throughout all three missions.
+function makeGuardian() {
+  const group = new Group();
+  group.position.set(2.05, 0, 1.05);
+  const round = new SphereGeometry(1, 16, 12);
+  const bark = new MeshStandardMaterial({ color: 0x74593e, roughness: 1 });
+  const feathers = new MeshStandardMaterial({ color: 0x71875b, roughness: 1 });
+  const cream = new MeshStandardMaterial({ color: 0xdfc98c, roughness: 0.8 });
+  const eye = new MeshBasicMaterial({ color: 0x20322e });
+  function oval(parent: Group, material: Material, x: number, y: number, z: number, w: number, h: number, d: number) {
+    const mesh = new Mesh(round, material);
+    mesh.position.set(x, y, z);
+    mesh.scale.set(w, h, d);
+    parent.add(mesh);
+    return mesh;
+  }
+  const stump = new Mesh(new CylinderGeometry(0.36, 0.46, 0.26, 9), bark);
+  stump.position.y = 0.13;
+  group.add(stump);
+  oval(group, feathers, 0, 0.56, 0, 0.38, 0.39, 0.30);
+  const face = new Group();
+  face.position.set(0, 0.88, 0.10);
+  face.rotation.x = -0.60;
+  group.add(face);
+  oval(face, feathers, 0, 0, 0, 0.40, 0.29, 0.25);
+  for (const side of [-1, 1]) {
+    const tuft = new Mesh(new ConeGeometry(0.135, 0.32, 5), feathers);
+    tuft.position.set(side * 0.26, 0.23, -0.02);
+    tuft.rotation.z = -side * 0.35;
+    face.add(tuft);
+    oval(face, cream, side * 0.145, 0.045, 0.20, 0.139, 0.145, 0.055);
+    oval(face, eye, side * 0.14, 0.05, 0.246, 0.059, 0.073, 0.025);
+  }
+  const beak = new Mesh(new ConeGeometry(0.057, 0.17, 4), cream);
+  beak.rotation.z = Math.PI;
+  beak.position.set(0, -0.043, 0.255);
+  face.add(beak);
+
+  const staff = new Mesh(new CylinderGeometry(0.055, 0.08, 0.87, 7), bark);
+  staff.position.set(0.52, 0.47, 0.08);
+  group.add(staff);
+  const bowl = new Mesh(new CylinderGeometry(0.185, 0.083, 0.15, 8), cream);
+  bowl.position.set(0.52, 0.94, 0.08);
+  group.add(bowl);
+  const flame = new Group();
+  flame.position.set(0.52, 1, 0.08);
+  group.add(flame);
+  const amber = new MeshBasicMaterial({ color: 0xffa23b });
+  oval(flame, amber, 0, 0.17, 0, 0.14, 0.22, 0.14);
+  const tip = new Mesh(new ConeGeometry(0.11, 0.30, 8), amber);
+  tip.position.set(0.018, 0.36, 0);
+  tip.rotation.z = -0.12;
+  flame.add(tip);
+  oval(flame, new MeshBasicMaterial({ color: 0xfff5b6 }), 0, 0.15, 0.08, 0.076, 0.14, 0.075);
+  const sizes = [0.23, 0.55, 0.82, 1.18];
+  function update(level: number, seconds: number) {
+    const size = sizes[level]!;
+    const flicker = level === 3 ? 1 : 1 + 0.05 * Math.sin(seconds * 3.5);
+    flame.scale.set(size, size * flicker, size);
+  }
+  const torchAt = new Vector2(group.position.x + flame.position.x, group.position.z + flame.position.z);
+  return { group, torchAt, update };
 }
 
 function makeInwardCues(radius: number) {
@@ -137,19 +212,29 @@ function makeEntrance(anchor: Entrance, id?: string) {
   return { anchor, id, group, pit, rim, cues, closed };
 }
 
-export function createExplorationWorld({ entry, entries, bounds }: ExplorationOptions) {
+export function createExplorationWorld({ entry, entries, bounds, story = false }: ExplorationOptions) {
   const scene = new Scene();
-  scene.background = new Color(0x10292e);
-  scene.fog = new FogExp2(0x173737, 0.038);
+  const sky = new Color(0x10292e);
+  const mist = new FogExp2(0x173737, 0.038);
+  scene.background = sky;
+  scene.fog = mist;
   const camera = new PerspectiveCamera(46, 1, 0.035, 160);
   const key = new DirectionalLight(0xffedbd, 2.0);
   key.position.set(-3, 7, 3);
-  scene.add(key, new HemisphereLight(0xc4e5dd, 0x526b63, 1.45), makeForest(bounds));
+  const { forest, restoreFoliage } = makeForest(bounds);
+  scene.add(key, new HemisphereLight(0xc4e5dd, 0x526b63, 1.45), forest);
+  const guardian = story ? makeGuardian() : null;
+  if (guardian) scene.add(guardian.group);
 
   const lightAt = new Vector2();
   const aperture = new Vector3();
+  const restorationFront = { value: 200 };
+  const torchLight = { value: 0 };
   const ground = new Mesh(new PlaneGeometry(120, 120), new ShaderMaterial({
-    uniforms: { lightAt: { value: lightAt }, aperture: { value: aperture } },
+    uniforms: {
+      lightAt: { value: lightAt }, aperture: { value: aperture }, restorationFront,
+      torchAt: { value: guardian?.torchAt ?? new Vector2() }, torchLight,
+    },
     vertexShader: `varying vec2 groundPos;
       void main() {
         vec4 world = modelMatrix * vec4(position, 1.0);
@@ -159,6 +244,9 @@ export function createExplorationWorld({ entry, entries, bounds }: ExplorationOp
     fragmentShader: `varying vec2 groundPos;
       uniform vec2 lightAt;
       uniform vec3 aperture;
+      uniform float restorationFront;
+      uniform vec2 torchAt;
+      uniform float torchLight;
       void main() {
         vec2 p = groundPos;
         if (distance(p, aperture.xy) < aperture.z) discard;
@@ -166,11 +254,17 @@ export function createExplorationWorld({ entry, entries, bounds }: ExplorationOp
         float broad = sin(p.x * 0.89 + p.y * 0.71 + sin(p.y * 0.67));
         vec3 ground = mix(vec3(0.009, 0.034, 0.037), vec3(0.027, 0.063, 0.051), 0.5 + 0.5 * broad);
         ground += vec3(0.002, 0.004, 0.002) * grain;
+        float meadow = smoothstep(restorationFront, restorationFront + 0.65, p.y + 0.09 * sin(2.1*p.x));
+        vec3 moss = mix(vec3(0.073,0.155,0.061), vec3(0.22,0.31,0.101), 0.5 + 0.5 * broad);
+        ground = mix(ground, moss + vec3(0.012,0.017,0.005)*grain, meadow);
+        float torchDistance = distance(p, torchAt);
+        ground += vec3(0.25,0.14,0.026) * torchLight * exp(-1.35*torchDistance*torchDistance);
         float d = distance(p, lightAt);
         float pool = 1.0 - smoothstep(0.06, 1.86, d);
         ground += vec3(0.21, 0.135, 0.025) * pool * pool;
         float farGround = smoothstep(6.0, 18.0, length(p));
-        gl_FragColor = vec4(mix(ground, vec3(0.009, 0.034, 0.034), farGround), 1.0);
+        vec3 haze = mix(vec3(0.009, 0.034, 0.034), vec3(0.12,0.22,0.14), meadow);
+        gl_FragColor = vec4(mix(ground, haze, farGround), 1.0);
         #include <colorspace_fragment>
       }`,
   }));
@@ -189,6 +283,20 @@ export function createExplorationWorld({ entry, entries, bounds }: ExplorationOp
   const ray = new Raycaster();
   const ndc = new Vector2();
   const hit = new Vector3();
+  let restoration = 0;
+
+  function setRestoration(level: number) {
+    const next = MathUtils.clamp(Math.trunc(level), 0, 3);
+    if (!Number.isFinite(level) || next === restoration) return;
+    restoration = next;
+    // Positive Z is south. Stage two still leaves the northernmost mission area in darkness.
+    restorationFront.value = [200, 1.1, -0.75, -200][next]!;
+    restoreFoliage(restorationFront.value);
+    torchLight.value = guardian ? next / 3 : 0;
+    sky.setHex(next === 3 ? 0x91ad91 : 0x10292e);
+    mist.color.setHex(next === 3 ? 0x9cb69a : 0x173737);
+    guardian?.update(restoration, 0);
+  }
 
   function pickGround(ndcX: number, ndcY: number): Anchor | null {
     ray.setFromCamera(ndc.set(ndcX, ndcY), camera);
@@ -198,6 +306,7 @@ export function createExplorationWorld({ entry, entries, bounds }: ExplorationOp
 
   function update({ position, ready, used, readyId, consumedIds, elapsedSeconds, reducedMotion }: ExplorationFrame) {
     const t = reducedMotion ? 0 : elapsedSeconds;
+    guardian?.update(restoration, t);
     lightAt.set(position.x, position.z);
     fly.position.set(position.x, 0.57 + 0.036 * Math.sin(t * 2.4), position.z);
     fly.quaternion.copy(camera.quaternion);
@@ -248,5 +357,6 @@ export function createExplorationWorld({ entry, entries, bounds }: ExplorationOp
   }
 
   resize(1);
-  return { scene, camera, firefly: fly, apertureRadius: entry.radius, setAperture, resize, pickGround, update, dispose };
+  guardian?.update(restoration, 0);
+  return { scene, camera, firefly: fly, apertureRadius: entry.radius, setRestoration, setAperture, resize, pickGround, update, dispose };
 }

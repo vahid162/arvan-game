@@ -57,15 +57,16 @@ export interface UpgradeDefinition {
   readonly multiplier: number;
 }
 
+export type MissionIdentity = Pick<GeneratedMission, 'seed' | 'generatorVersion' | 'contentVersion' | 'manifestHash'>;
+
 export interface Profile {
-  readonly version: number;
+  readonly version: 1;
   readonly completedMissionIds: readonly string[];
-  readonly restoredIds: readonly string[];
   readonly claimedWorldIds: readonly string[];
   readonly crystals: number;
   readonly upgrades: Loadout;
   readonly settings: { readonly sound: boolean; readonly reducedMotion: boolean; readonly sensitivity: number };
-  readonly assignedMissions: Readonly<Partial<Record<string, GeneratedMission>>>;
+  readonly assignedMissions: Readonly<Partial<Record<string, MissionIdentity>>>;
   readonly pendingPresentationMissionId: string | null;
   readonly practiceRecords: Readonly<Partial<Record<string, number>>>;
 }

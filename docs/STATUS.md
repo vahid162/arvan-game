@@ -15,7 +15,8 @@
 | P06 | `READY_FOR_REVIEW` |
 | P07 | `COMPLETE` |
 | P08 | `COMPLETE` |
-| P09–P15 | `NOT_STARTED` |
+| P09 | `COMPLETE` |
+| P10–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -42,6 +43,10 @@ The 25-of-36 mission now plays through three openings with a 90-second active cl
 ## P08 checkpoint
 
 The campaign advances through targets 22, 25 and 28. Each mission has three seeded tunnels and 90 active seconds. All 3,000 sampled layouts reproduced from their seed and allowed base steering to reach every light. The longest full route in the validation sweep took 29.197 active seconds. Geometry checks covered all nine template and anchor combinations in portrait and landscape. Chromium won missions 1 and 2 and opened mission 3 with its correct target and fresh clock.
+
+## P09 checkpoint
+
+A winning frame saves the Elixir delivery and restoration before the return animation. The third win restores the last part of the forest, steadies the guardian’s torch and records the one-time 12-crystal reward. Nine save tests covered reload, duplicate completion, competing tabs, and storage failures. Chromium verified the progression from a dark clearing to a fully restored forest.
 
 ## P02 evidence
 

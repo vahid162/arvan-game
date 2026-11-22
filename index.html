@@ -49,6 +49,7 @@
               <time id="game-clock" aria-label="Active time remaining"></time>
             </div>
             <h2 id="mission-result" hidden></h2>
+            <span id="elixir" aria-hidden="true" hidden></span>
             <p id="game-hint" role="status"></p>
           </div>
           <section id="briefing" class="game-card" hidden aria-labelledby="brief-title">
@@ -72,6 +73,9 @@
           </div>
         </figcaption>
       </figure>
+      <p id="forest-progress" hidden></p>
+      <p id="profile-notice" role="status" hidden></p>
+      <button id="profile-memory" type="button" hidden>Play without saving</button>
       <noscript><p>This preview needs JavaScript. Enable it in your browser and reload the page.</p></noscript>
     </main>
     <script type="module" src="/src/main.ts"></script>
