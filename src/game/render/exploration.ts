@@ -108,8 +108,9 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
   scene.add(key, new HemisphereLight(0xc4e5dd, 0x526b63, 1.45), makeForest(bounds));
 
   const lightAt = new Vector2();
+  const aperture = new Vector3();
   const ground = new Mesh(new PlaneGeometry(120, 120), new ShaderMaterial({
-    uniforms: { lightAt: { value: lightAt } },
+    uniforms: { lightAt: { value: lightAt }, aperture: { value: aperture } },
     vertexShader: `varying vec2 groundPos;
       void main() {
         vec4 world = modelMatrix * vec4(position, 1.0);
@@ -118,8 +119,10 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
       }`,
     fragmentShader: `varying vec2 groundPos;
       uniform vec2 lightAt;
+      uniform vec3 aperture;
       void main() {
         vec2 p = groundPos;
+        if (distance(p, aperture.xy) < aperture.z) discard;
         float grain = sin(p.x * 3.1 + sin(p.y * 1.9)) * sin(p.y * 3.6 + sin(p.x * 1.6));
         float broad = sin(p.x * 0.89 + p.y * 0.71 + sin(p.y * 0.67));
         vec3 ground = mix(vec3(0.009, 0.034, 0.037), vec3(0.027, 0.063, 0.051), 0.5 + 0.5 * broad);
@@ -183,6 +186,12 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
     frameExplorationCamera(camera, bounds, aspect);
   }
 
+  function setAperture(anchor: Anchor | null) {
+    aperture.set(anchor?.x ?? 0, anchor?.z ?? 0, anchor ? entry.radius : 0);
+    pit.visible = !anchor;
+    marker.visible = !anchor;
+  }
+
   function dispose() {
     const geometries = new Set<BufferGeometry>();
     const materials = new Set<Material>();
@@ -198,5 +207,5 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
   }
 
   resize(1);
-  return { scene, camera, firefly: fly, resize, pickGround, update, dispose };
+  return { scene, camera, firefly: fly, apertureRadius: entry.radius, setAperture, resize, pickGround, update, dispose };
 }

@@ -9,7 +9,8 @@
 | P02 | `BLOCKED` |
 | P03 | `COMPLETE` |
 | P04 | `COMPLETE` |
-| P05–P15 | `NOT_STARTED` |
+| P05 | `COMPLETE` |
+| P06–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -18,6 +19,10 @@ Implemented deterministic mission state and the active-time clock. Unit tests co
 ## P04 checkpoint
 
 The firefly lights a small area of the clearing. Pointer or keyboard input can find the opening, and releasing within the displayed ring enters the drop state. Chromium covered near-boundary release, invalid release with the clock still running, capture outside the playfield, pause, focus loss, resize and two-finger cancellation. The capture shows the release cue at an emulated 390 × 844 viewport. [Ready to release](evidence/p04-ready.png)
+
+## P05 checkpoint
+
+One distance-sampled curve connects the opening to a separate forest exit. The chase camera follows the centerline. The drop, ready and exit states freeze the clock. Geometry tests checked the camera seams, wall clearance and firefly framing in portrait and landscape. Chromium checked pause, resize and repeated rides on the same canvas. A 12-frame SwiftShader sample on the workspace host had a median interval of 150 ms. Physical-phone performance remains unmeasured. [Entry](evidence/p05-entry.png) · [Travel](evidence/p05-travel.png) · [Exit](evidence/p05-exit.png)
 
 ## P02 evidence
 

@@ -12,6 +12,7 @@ const gamePanel = document.querySelector<HTMLElement>('#game')!;
 const gameClock = document.querySelector<HTMLElement>('#game-clock')!;
 const gameScore = document.querySelector<HTMLElement>('#game-score')!;
 const gameHint = document.querySelector<HTMLElement>('#game-hint')!;
+const sceneTitle = document.querySelector<HTMLElement>('#scene-title')!;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 let preview: Preview | undefined;
@@ -63,6 +64,7 @@ function showHud(hud: GameHud) {
   setText(gameScore, `${hud.lights} light${hud.lights === 1 ? '' : 's'}`);
   setText(gameHint, hud.hint);
   setText(gameAction, hud.action);
+  setText(sceneTitle, hud.phase.startsWith('tunnel') ? 'Under the forest' : 'Forest clearing');
 }
 
 play.onclick = async () => {
