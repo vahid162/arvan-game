@@ -99,7 +99,11 @@ test('the forest campaign unlocks the 25- and 28-light missions with fresh 90-se
     await winStoryMission(page, campaign[index]!);
     await page.getByRole('button', { name: 'Next mission', exact: true }).click();
     await expect(page.getByRole('heading', { name: `Mission ${index + 2} of 3`, exact: true })).toBeVisible();
-    await startBriefedMission(page, campaign[index + 1]!);
+    const next = campaign[index + 1]!;
+    await expect(page.locator('#brief-goal')).toHaveText(`${next.definition.targetLight} of 36`);
+    await expect(page.locator('#brief-time')).toHaveText('90 sec');
+    await expect(page.locator('#brief-tunnels')).toHaveText('3');
+    await startBriefedMission(page, next);
   }
   await enterTunnel(page, campaign[2]!.tunnels[0]!);
   await storyPhase(page, 'tunnel-ready');
@@ -164,6 +168,7 @@ test('the deadline stops an active tunnel immediately and later input cannot awa
   await expect(page.locator('#mission-result')).toHaveText('Mission failed');
   await storyPhase(page, 'failure');
   await expect(page.locator('#game-hint')).toHaveText('Time ran out before you reached the target.');
+  await expect(page.locator('#result-tip')).toContainText('Search the far side');
   expect(await remainingMissionMs(page)).toBe(0);
   await page.keyboard.press('ArrowLeft');
   await page.clock.fastForward(8000);

@@ -28,6 +28,7 @@ export interface GameHud {
   total: number;
   target: number | null;
   result: string;
+  failure: 'deadline' | 'unreachable' | null;
   storyWon: boolean;
   collecting: boolean;
   hint: string;
@@ -406,6 +407,7 @@ export function createGame(
         lights: attempt.collectedIds.size, total: totalLights,
         target: tutorial ? null : mission.definition.targetLight,
         result: resultText(),
+        failure: !tutorial && outcome?.kind === 'failure' ? outcome.reason : null,
         storyWon: mode === 'story' && outcome?.kind === 'success',
         collecting: visualMs - pickupMs < 230, hint: hint(ready),
         action: t(attempt.paused || returnPaused ? 'resume' : returned || (attempt.outcome && !returning) ? 'retry' : 'pause'),

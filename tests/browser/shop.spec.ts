@@ -44,10 +44,12 @@ for (const [id, cost, otherCost] of [
 ] as const) {
   test(`the ${id} purchase costs ${cost}, survives reload and leaves the other level unaffordable`, async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Shop', exact: true })).toHaveClass('primary');
     let shop = await openShop(page);
     await expect(page.locator('#shop-balance')).toHaveText('12 crystals');
     await shop.getByRole('button', { name: `Buy for ${cost} crystals`, exact: true }).click();
     const balance = 12 - cost;
+    await expect(page.locator('#shop-feedback')).toHaveText('Upgrade equipped for your next practice run.');
     for (const reload of [false, true]) {
       if (reload) {
         await page.reload();
@@ -56,6 +58,7 @@ for (const [id, cost, otherCost] of [
       await expect(page.locator('#shop-balance')).toHaveText(`${balance} crystals`);
       await expect(shop.getByRole('button', { name: 'Owned', exact: true })).toBeDisabled();
       await expect(shop.getByRole('button', { name: `Buy for ${otherCost} crystals`, exact: true })).toBeDisabled();
+      await expect(shop.getByText(`Need ${otherCost - balance} more crystals`)).toBeVisible();
       expect(await readProfile(page)).toEqual({ ...restored, crystals: balance, upgrades: { [id]: 1 } });
     }
   });
@@ -68,6 +71,7 @@ test('a purchased level is usable in practice and the best score is the only cha
   const shop = await openShop(page);
   await shop.getByRole('button', { name: 'Buy for 8 crystals', exact: true }).click();
   await shop.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Practice', exact: true })).toHaveClass('primary');
   const before = await readProfile(page);
   expect(before.upgrades).toEqual({ 'exploration-radius': 1 });
   const progress = page.locator('#forest-progress');

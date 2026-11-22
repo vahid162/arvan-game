@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#101916">
     <link rel="icon" type="image/png" sizes="32x32" href="/src/assets/amber-spark.png?no-inline">
     <link rel="stylesheet" href="/src/shell.css">
@@ -51,32 +51,44 @@
             <div class="play-feedback">
               <h2 id="mission-result" hidden></h2>
               <p id="game-hint" role="status"></p>
+              <p id="result-tip" class="result-tip" hidden></p>
             </div>
           </div>
-          <section id="briefing" class="game-card" hidden aria-labelledby="brief-title">
+          <dialog id="briefing" class="game-card" aria-labelledby="brief-title">
             <h2 id="brief-title">Into the darkness</h2>
             <p id="brief-detail"></p>
+            <dl id="mission-facts" class="mission-facts" hidden>
+              <div><dt data-copy="briefGoal">Light target</dt><dd id="brief-goal"></dd></div>
+              <div><dt data-copy="briefTime">Active time</dt><dd id="brief-time"></dd></div>
+              <div><dt data-copy="briefTunnels">Tunnels</dt><dd id="brief-tunnels"></dd></div>
+            </dl>
             <button id="mission-start" class="primary" type="button">Start mission</button>
             <button id="brief-back" data-copy="back" type="button">Back</button>
-          </section>
-          <section id="shop-panel" class="game-card" hidden aria-labelledby="shop-title">
+          </dialog>
+          <dialog id="shop-panel" class="game-card" aria-labelledby="shop-title">
             <h2 id="shop-title" data-copy="shop">Shop</h2>
             <p id="shop-balance" class="crystal-balance"></p>
-            <p data-copy="rewardLimit">The guardian’s reward buys one upgrade.</p>
+            <p id="shop-intro" data-copy="rewardLimit">The guardian’s reward buys one upgrade.</p>
+            <p id="shop-feedback" role="status" tabindex="-1" hidden></p>
             <div class="shop-offer">
               <span class="upgrade-icon light-radius" aria-hidden="true"></span>
               <p><strong data-copy="explorationRadius">Exploration light radius</strong><br><span data-copy="explorationEffect">Reveal openings 10% farther away.</span></p>
-              <button type="button" data-upgrade="exploration-radius">Buy for 8 crystals</button>
+              <div class="shop-action">
+                <button type="button" data-upgrade="exploration-radius" aria-describedby="exploration-shortfall">Buy for 8 crystals</button>
+                <p id="exploration-shortfall" class="upgrade-shortfall" hidden></p>
+              </div>
             </div>
             <div class="shop-offer">
               <span class="upgrade-icon collection-radius" aria-hidden="true"></span>
               <p><strong data-copy="collectionRadius">Collection radius</strong><br><span data-copy="collectionEffect">Catch lights from 10% farther away.</span></p>
-              <button type="button" data-upgrade="collection-radius">Buy for 10 crystals</button>
+              <div class="shop-action">
+                <button type="button" data-upgrade="collection-radius" aria-describedby="collection-shortfall">Buy for 10 crystals</button>
+                <p id="collection-shortfall" class="upgrade-shortfall" hidden></p>
+              </div>
             </div>
-            <p id="shop-feedback" role="status" hidden></p>
             <button id="shop-back" data-copy="back" type="button">Back</button>
-          </section>
-          <section id="practice-panel" class="game-card" hidden aria-labelledby="practice-title">
+          </dialog>
+          <dialog id="practice-panel" class="game-card" aria-labelledby="practice-title">
             <h2 id="practice-title" data-copy="practice">Practice</h2>
             <p data-copy="practiceDark">Revisit a mission in its original darkness. The forest stays restored.</p>
             <p id="practice-equipment"></p>
@@ -84,8 +96,8 @@
             <button type="button" data-practice="1">Mission 2</button>
             <button type="button" data-practice="2">Mission 3</button>
             <button id="practice-back" data-copy="back" type="button">Back</button>
-          </section>
-          <section id="settings-panel" class="game-card" hidden aria-labelledby="settings-title">
+          </dialog>
+          <dialog id="settings-panel" class="game-card" aria-labelledby="settings-title">
             <h2 id="settings-title" data-copy="settings">Settings</h2>
             <label class="setting-row"><span data-copy="sound">Sound effects</span><input id="setting-sound" type="checkbox" checked></label>
             <label class="setting-row"><span data-copy="motionSetting">Reduce motion</span><input id="setting-motion" type="checkbox" aria-describedby="system-motion"></label>
@@ -99,7 +111,7 @@
             </label>
             <div class="setting-row"><span data-copy="language">Language</span><a id="language-switch" data-copy="otherLanguage" href="?lang=fa">فارسی</a></div>
             <button id="settings-back" data-copy="back" type="button">Back</button>
-          </section>
+          </dialog>
         </div>
         <figcaption>
           <h2 id="scene-title" data-copy="clearing">Forest clearing</h2>

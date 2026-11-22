@@ -1,6 +1,6 @@
 # Light Hunt development status
 
-**P11-B · READY_FOR_REVIEW** — the tutorial, forest presentation, interface, sound and settings are ready for owner review. English is the default and Settings links to the Persian right-to-left interface.
+**P11-B · READY_FOR_REVIEW** — the final UI/UX pass is ready for owner review. English remains the default, and Settings links to Persian. [Play the game](../README.md#developer-setup)
 
 **P11-A · COMPLETE** — the owner approved the difficulty at `1d56887`. The P10 build at `4fa8d16` was the comparison baseline.
 
@@ -76,6 +76,22 @@ Strict TypeScript, lint and 43 focused unit cases passed. Seven Chromium cases p
 The approved procedural firefly, forest, tunnel walls and owl remain the visual reference. New presentation assets are project-authored meshes, CSS icons and synthesized Web Audio cues. The firefly carries a visible elixir, the restored area brightens over 1.4 seconds and the guardian celebrates beside a steady final torch. Reduced motion displays each finished restoration immediately. Sound, reduced motion and pointer sensitivity save in the existing profile. The untimed tutorial uses the existing controls and leaves story progress intact.
 
 The production build, strict TypeScript, lint and 37 focused unit cases passed. All 31 distinct Chromium cases passed across focused runs. They covered an eight-minute tutorial wait followed by keyboard completion, muted pickups and audio activation, manual pause across device preference changes, Persian landscape and narrow portrait layouts, and the three campaign wins with reload and reward checks. Chromium pixel samples verified gradual restoration and an immediate settled view with reduced motion. Physical-device steering, motion comfort and listening checks remain open alongside the P02 live ArvanCloud probe.
+
+## Final P11 UI/UX checkpoint
+
+A Chromium playthrough of `2f1852d` found menu actions below the phone viewport, briefing controls exposed behind the card, and shop feedback clipped after purchase. The menu now fits its actions and save notice on the first screen at the checked sizes. Native dialogs keep pointer and keyboard focus inside and return focus on Back or Escape. Briefings separate the light target, active time and tunnel count. Failure feedback suggests what to try on the next run. The guardian result has one clear next action. The shop keeps purchase confirmation above the choices and explains the shortfall on the remaining upgrade.
+
+The production build, strict TypeScript, lint and 14 focused Chromium cases passed across two runs. The isolated phone-menu check passed after a concurrent headless startup timeout. Before and after, a full Chromium playthrough covered the tutorial, failure and retry, wins at 22/25/28 lights, the 12-crystal reward, an 8-crystal purchase, and 22-light practice. The final saved profiles matched byte for byte. Layout checks covered English and Persian, emulated touch, keyboard focus, 48px controls, and portrait and landscape sizes down to 320×568 and 568×320. Sampled text and focus contrast pairs ranged from 7.3:1 to 15.5:1. Physical-device testing remains open for P12, and the P02 live ArvanCloud probe remains pending.
+
+### Before and after screenshots
+
+| Screen | P11-B baseline | Final UI/UX pass |
+| --- | --- | --- |
+| Phone menu | [Before](evidence/p11-ux/menu-320-before.png) | [After](evidence/p11-ux/menu-320-after.png) |
+| Mission briefing | [Before](evidence/p11-ux/briefing-390-before.png) | [After](evidence/p11-ux/briefing-390-after.png) |
+| Failure and retry | [Before](evidence/p11-ux/failed-320-before.png) | [After](evidence/p11-ux/failed-320-after.png) |
+| Guardian reward | [Before](evidence/p11-ux/guardian-reward-320-before.png) | [After](evidence/p11-ux/guardian-reward-320-after.png) |
+| Shop after purchase | [Before](evidence/p11-ux/shop-owned-320-before.png) | [After](evidence/p11-ux/shop-owned-320-after.png) |
 
 ## P02 evidence
 

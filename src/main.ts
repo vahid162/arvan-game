@@ -12,9 +12,13 @@ const motion = document.querySelector<HTMLButtonElement>('#motion')!;
 const motionLabel = document.querySelector<HTMLElement>('#motion-label')!;
 const play = document.querySelector<HTMLButtonElement>('#play')!;
 const story = document.querySelector<HTMLButtonElement>('#story')!;
-const briefing = document.querySelector<HTMLElement>('#briefing')!;
+const briefing = document.querySelector<HTMLDialogElement>('#briefing')!;
 const briefTitle = document.querySelector<HTMLElement>('#brief-title')!;
 const briefDetail = document.querySelector<HTMLElement>('#brief-detail')!;
+const missionFacts = document.querySelector<HTMLElement>('#mission-facts')!;
+const briefGoal = document.querySelector<HTMLElement>('#brief-goal')!;
+const briefTime = document.querySelector<HTMLElement>('#brief-time')!;
+const briefTunnels = document.querySelector<HTMLElement>('#brief-tunnels')!;
 const missionStart = document.querySelector<HTMLButtonElement>('#mission-start')!;
 const briefBack = document.querySelector<HTMLButtonElement>('#brief-back')!;
 const missionTarget = document.querySelector<HTMLElement>('#mission-target')!;
@@ -27,24 +31,26 @@ const gameClock = document.querySelector<HTMLElement>('#game-clock')!;
 const gameScore = document.querySelector<HTMLElement>('#game-score')!;
 const gameMode = document.querySelector<HTMLElement>('#game-mode')!;
 const gameHint = document.querySelector<HTMLElement>('#game-hint')!;
+const resultTip = document.querySelector<HTMLElement>('#result-tip')!;
 const sceneTitle = document.querySelector<HTMLElement>('#scene-title')!;
 const forestProgress = document.querySelector<HTMLElement>('#forest-progress')!;
 const profileNotice = document.querySelector<HTMLElement>('#profile-notice')!;
 const localSave = document.querySelector<HTMLElement>('#local-save')!;
 const memoryButton = document.querySelector<HTMLButtonElement>('#profile-memory')!;
 const shop = document.querySelector<HTMLButtonElement>('#shop')!;
-const shopPanel = document.querySelector<HTMLElement>('#shop-panel')!;
+const shopPanel = document.querySelector<HTMLDialogElement>('#shop-panel')!;
 const shopBalance = document.querySelector<HTMLElement>('#shop-balance')!;
+const shopIntro = document.querySelector<HTMLElement>('#shop-intro')!;
 const shopFeedback = document.querySelector<HTMLElement>('#shop-feedback')!;
 const shopBack = document.querySelector<HTMLButtonElement>('#shop-back')!;
 const upgradeButtons = shopPanel.querySelectorAll<HTMLButtonElement>('[data-upgrade]');
 const practice = document.querySelector<HTMLButtonElement>('#practice')!;
-const practicePanel = document.querySelector<HTMLElement>('#practice-panel')!;
+const practicePanel = document.querySelector<HTMLDialogElement>('#practice-panel')!;
 const practiceBack = document.querySelector<HTMLButtonElement>('#practice-back')!;
 const practiceEquipment = document.querySelector<HTMLElement>('#practice-equipment')!;
 const practiceMissions = practicePanel.querySelectorAll<HTMLButtonElement>('[data-practice]');
 const settings = document.querySelector<HTMLButtonElement>('#settings')!;
-const settingsPanel = document.querySelector<HTMLElement>('#settings-panel')!;
+const settingsPanel = document.querySelector<HTMLDialogElement>('#settings-panel')!;
 const settingsBack = document.querySelector<HTMLButtonElement>('#settings-back')!;
 const settingSound = document.querySelector<HTMLInputElement>('#setting-sound')!;
 const settingMotion = document.querySelector<HTMLInputElement>('#setting-motion')!;
@@ -52,9 +58,12 @@ const settingSensitivity = document.querySelector<HTMLSelectElement>('#setting-s
 const systemMotion = document.querySelector<HTMLElement>('#system-motion')!;
 const languageSwitch = document.querySelector<HTMLAnchorElement>('#language-switch')!;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const panelBackButtons = [[briefing, briefBack], [shopPanel, shopBack], [practicePanel, practiceBack], [settingsPanel, settingsBack]] as const;
 
 let preview: Preview | undefined;
 let game: GameView | undefined;
+let pendingStart: AbortController | undefined;
+let gameOpener = play;
 let cancelled = false;
 let campaignStep = 0;
 let profile: ProfileStore | undefined;
@@ -140,9 +149,10 @@ function setText(element: HTMLElement, value: string) {
 
 function refreshProfile() {
   if (!profile) return;
-  campaignStep = profile.profile.completedMissionIds.length;
+  const { completedMissionIds, crystals, upgrades, pendingPresentationMissionId } = profile.profile;
+  campaignStep = completedMissionIds.length;
   forestProgress.hidden = campaignStep === 0;
-  setText(forestProgress, t('progress', campaignStep, profile.profile.crystals));
+  setText(forestProgress, t('progress', campaignStep, crystals));
   setText(story, t(campaignStep === 3 ? 'viewForest' : campaignStep ? 'continueStory' : 'playStory'));
   const message = {
     durable: '',
@@ -156,15 +166,34 @@ function refreshProfile() {
   profileNotice.hidden = !message;
   localSave.hidden = !!message || !!game;
   const writable = profile.status === 'durable' || profile.status === 'memory';
-  const unlocked = campaignStep === 3 && profile.profile.pendingPresentationMissionId === null;
+  const unlocked = campaignStep === 3 && pendingPresentationMissionId === null;
   story.disabled = !writable && !unlocked;
   shop.hidden = practice.hidden = !unlocked || !!game;
   shop.disabled = practice.disabled = !writable;
-  memoryButton.hidden = writable || profile.status === 'busy';
+  const canUpgrade = UPGRADES.some(({ id, cost }) => !upgrades[id] && crystals >= cost);
+  const primary = unlocked && writable ? (canUpgrade ? shop : practice) : story;
+  for (const button of [story, shop, practice]) button.classList.toggle('primary', button === primary);
+  memoryButton.hidden = !!game || writable || profile.status === 'busy';
 }
 
 function hidePanels() {
-  briefing.hidden = shopPanel.hidden = practicePanel.hidden = settingsPanel.hidden = true;
+  if (pendingStart) {
+    pendingStart.abort();
+    pendingStart = undefined;
+    play.disabled = missionStart.disabled = false;
+  }
+  for (const [panel] of panelBackButtons) {
+    if (panel.open) panel.close();
+  }
+  memoryButton.before(profileNotice);
+}
+
+function openPanel(panel: HTMLDialogElement, focus: HTMLElement) {
+  hidePanels();
+  // A save warning must stay visible and announced while the page behind the dialog is inert.
+  panel.append(profileNotice);
+  panel.showModal();
+  focus.focus();
 }
 
 function elixirMessage() {
@@ -198,10 +227,13 @@ function showHud(hud: GameHud) {
   if (hud.target !== null) setText(missionTarget, t('target', hud.target));
   missionResult.hidden = !hud.result;
   tutorialNext.hidden = !(hud.tutorial && hud.result) || story.disabled;
+  gameAction.classList.toggle('primary', tutorialNext.hidden);
   setText(tutorialNext, story.textContent || t('playStory'));
-  gameMenu.hidden = !hud.result && !hud.paused;
+  gameMenu.hidden = storyWon || (!hud.result && !hud.paused);
   setText(missionResult, hud.result);
   setText(gameHint, storyWon ? elixirMessage() : hud.hint);
+  resultTip.hidden = hud.failure === null;
+  setText(resultTip, hud.failure ? t(hud.failure === 'deadline' ? 'deadlineTip' : 'steeringTip') : '');
   setText(gameAction, storyWon ? t(campaignStep < missionIndices.length ? 'nextMission' : 'backClearing') : hud.action);
   const underground = hud.phase.startsWith('tunnel');
   setText(sceneTitle, t(underground ? 'underground' : 'clearing'));
@@ -211,12 +243,16 @@ function showHud(hud: GameHud) {
 
 async function startGame(mission?: GeneratedMission, mode: AttemptMode = 'story', trainingStage = 0) {
   if (game || play.disabled) return;
+  const request = new AbortController();
+  pendingStart = request;
   play.disabled = true;
   missionStart.disabled = true;
-  practicing = !!mission && mode === 'practice';
   try {
     const { createGame } = await import('./game/play');
-    if (!preview) return;
+    if (!preview || request.signal.aborted) return;
+    pendingStart = undefined;
+    practicing = !!mission && mode === 'practice';
+    gameOpener = practicing ? practice : mission ? story : play;
     game = createGame(canvas, lessMotion(), showHud, () => preview?.redraw(), {
       mission,
       mode,
@@ -244,6 +280,7 @@ async function startGame(mission?: GeneratedMission, mode: AttemptMode = 'story'
     practice.hidden = true;
     settings.hidden = true;
     localSave.hidden = true;
+    memoryButton.hidden = true;
     hidePanels();
     motion.hidden = true;
     setText(gameMenu, t(practicing ? 'returnForest' : 'menu'));
@@ -253,22 +290,31 @@ async function startGame(mission?: GeneratedMission, mode: AttemptMode = 'story'
     preview.show(game);
     game.startClock();
   } catch {
-    showFailure(t('gameFailed'));
+    if (!request.signal.aborted) showFailure(t('gameFailed'));
   }
 }
 play.onclick = () => void startGame();
+
+function showMissionFacts(mission?: GeneratedMission) {
+  missionFacts.hidden = !mission;
+  if (!mission) return;
+  const lights = mission.tunnels.reduce((total, tunnel) => total + tunnel.lights.length, 0);
+  setText(briefGoal, t('briefLightCount', mission.definition.targetLight, lights));
+  setText(briefTime, t('briefTimeCount', mission.definition.timeLimitMs / 1000));
+  setText(briefTunnels, t('briefTunnelCount', mission.tunnels.length));
+}
+
 function openStoryBriefing() {
   if (!profile || story.disabled) return;
-  hidePanels();
   offeredMode = 'story';
-  briefing.hidden = false;
+  showMissionFacts();
   if (profile.profile.pendingPresentationMissionId) {
     offeredIndex = undefined;
     setText(briefTitle, t('elixirDelivered'));
     setText(briefDetail, elixirMessage());
     setText(missionStart, t(campaignStep < 3 ? 'nextMission' : 'backClearing'));
     missionStart.hidden = false;
-    missionStart.focus();
+    openPanel(briefing, missionStart);
     return;
   }
   const index = missionIndices[campaignStep];
@@ -276,21 +322,24 @@ function openStoryBriefing() {
   missionStart.hidden = index === undefined;
   if (index !== undefined) {
     setText(briefTitle, t('missionOf', index + 1, missionIndices.length));
-    const introduction = index === 0 ? t('openingStory') + ' ' : '';
-    setText(briefDetail, introduction + t('briefing', FOREST_MISSIONS[index].definition.targetLight));
+    setText(briefDetail, t(index === 0 ? 'openingStory' : 'findTunnels'));
+    showMissionFacts(FOREST_MISSIONS[index]);
     setText(missionStart, t('startMission'));
-    missionStart.focus();
+    openPanel(briefing, missionStart);
   } else {
     setText(briefTitle, t('restored'));
     setText(briefDetail, t('savedForest'));
-    briefBack.focus();
+    openPanel(briefing, briefBack);
   }
 }
 story.onclick = openStoryBriefing;
 briefBack.onclick = () => {
-  briefing.hidden = true;
-  if (offeredMode === 'practice') practice.click();
-  else story.focus();
+  if (offeredMode === 'practice' && offeredIndex !== undefined) {
+    openPractice(offeredIndex);
+  } else {
+    hidePanels();
+    story.focus();
+  }
 };
 missionStart.onclick = () => {
   if (profile?.profile.pendingPresentationMissionId) {
@@ -309,21 +358,24 @@ missionStart.onclick = () => {
 function showShop() {
   if (!profile) return;
   const { crystals, upgrades } = profile.profile;
+  shopIntro.hidden = !shopFeedback.hidden;
   setText(shopBalance, t('crystals', crystals));
   UPGRADES.forEach(({ id, cost }, index) => {
     const button = upgradeButtons[index]!;
     const owned = upgrades[id] === 1;
-    button.disabled = owned || crystals < cost;
+    const shortfall = document.getElementById(button.getAttribute('aria-describedby')!)!;
+    const missing = owned ? 0 : Math.max(0, cost - crystals);
+    button.disabled = owned || missing > 0;
     setText(button, owned ? t('owned') : t('buy', cost));
+    shortfall.hidden = missing === 0;
+    setText(shortfall, missing ? t('crystalShortfall', missing) : '');
   });
 }
 
 shop.onclick = () => {
-  hidePanels();
   shopFeedback.hidden = true;
-  shopPanel.hidden = false;
   showShop();
-  shopBack.focus();
+  openPanel(shopPanel, shopPanel.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? shopBack);
 };
 shopBack.onclick = () => {
   hidePanels();
@@ -342,18 +394,17 @@ for (const button of upgradeButtons) {
     shopFeedback.hidden = false;
     refreshProfile();
     showShop();
-    shopBack.focus();
+    shopFeedback.focus({ preventScroll: true });
   };
 }
 
-practice.onclick = () => {
-  hidePanels();
+function openPractice(selected = 0) {
   const loadout = profile?.profile.upgrades;
   const equipment = loadout?.['exploration-radius'] ? 'explorationRadius' : loadout?.['collection-radius'] ? 'collectionRadius' : 'baseEquipment';
   setText(practiceEquipment, t('equipment', t(equipment)));
-  practicePanel.hidden = false;
-  practicePanel.querySelector('button')?.focus();
-};
+  openPanel(practicePanel, practiceMissions[selected] ?? practiceBack);
+}
+practice.onclick = () => openPractice();
 practiceBack.onclick = () => {
   hidePanels();
   practice.focus();
@@ -371,12 +422,11 @@ for (const [index, button] of practiceMissions.entries()) {
     const best = profile.practiceBest(mission, profile.profile.upgrades);
     const record = best === null ? '' : ` ${t('bestEquipment', best)}`;
     setText(briefTitle, t('practiceMission', missionIndex + 1));
-    setText(briefDetail, t('practiceBrief', mission.definition.targetLight) + record);
+    setText(briefDetail, t('practiceBrief') + record);
+    showMissionFacts(mission);
     setText(missionStart, t('startPractice'));
     missionStart.hidden = false;
-    hidePanels();
-    briefing.hidden = false;
-    missionStart.focus();
+    openPanel(briefing, missionStart);
   };
 }
 
@@ -388,7 +438,6 @@ function updatePreferences(changes: Partial<Profile['settings']>) {
 }
 
 settings.onclick = () => {
-  hidePanels();
   settingSound.checked = preferences.sound;
   settingMotion.checked = preferences.reducedMotion;
   const sensitivity = String(preferences.sensitivity);
@@ -399,8 +448,7 @@ settings.onclick = () => {
     saved.dataset.saved = '';
     settingSensitivity.add(saved);
   }
-  settingsPanel.hidden = false;
-  settingSound.focus();
+  openPanel(settingsPanel, settingSound);
 };
 settingsBack.onclick = () => {
   hidePanels();
@@ -414,13 +462,12 @@ settingSensitivity.onchange = () => {
   if (saved && saved.value !== sensitivity) saved.remove();
   updatePreferences({ sensitivity: Number(sensitivity) });
 };
-window.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || game) return;
-  if (!settingsPanel.hidden) settingsBack.click();
-  else if (!practicePanel.hidden) practiceBack.click();
-  else if (!shopPanel.hidden) shopBack.click();
-  else if (!briefing.hidden) briefBack.click();
-});
+for (const [panel, back] of panelBackButtons) {
+  panel.addEventListener('cancel', event => {
+    event.preventDefault();
+    back.click();
+  });
+}
 
 memoryButton.onclick = () => {
   profile?.useMemory();
@@ -439,7 +486,6 @@ gameAction.onclick = () => {
 };
 function showMenu() {
   if (!preview) return;
-  const wasPracticing = practicing;
   game = undefined;
   practicing = false;
   storyWon = false;
@@ -461,8 +507,7 @@ function showMenu() {
   if (campaignStep > 0) preview.showForest(campaignStep);
   else preview.showIntro();
   syncMotion();
-  if (wasPracticing) practice.focus();
-  else story.focus();
+  gameOpener.focus();
 }
 gameMenu.onclick = showMenu;
 tutorialNext.onclick = () => {

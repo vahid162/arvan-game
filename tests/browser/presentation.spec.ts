@@ -1,7 +1,61 @@
 import { expect, test } from '@playwright/test';
 import { TUNNEL_DEMO } from '../../src/game/content/fixtures';
+import { defaultCampaignSeed, generateMission } from '../../src/game/content/generation';
 import { PROFILE_KEY } from '../../src/game/profile';
 import { beginCentered, enterTunnel, freezeStoryClock, storyPhase } from './story-controls';
+
+test('menu dialogs isolate pointer and keyboard input and return to the selected practice mission', async ({ page }) => {
+  const missions = ([0, 1, 2] as const).map(index => generateMission(index, defaultCampaignSeed(index)));
+  const save = {
+    version: 1, completedMissionIds: missions.map(mission => mission.definition.id), claimedWorldIds: ['forest'],
+    crystals: 12, upgrades: {}, pendingPresentationMissionId: null, practiceRecords: {},
+    settings: { sound: true, reducedMotion: true, sensitivity: 1 },
+    assignedMissions: Object.fromEntries(missions.map(({ definition, seed, generatorVersion, contentVersion, manifestHash }) =>
+      [definition.id, { seed, generatorVersion, contentVersion, manifestHash }])),
+  };
+  await page.addInitScript(({ key, raw }) => localStorage.setItem(key, raw), { key: PROFILE_KEY, raw: JSON.stringify(save) });
+  await page.goto('/');
+  const settings = page.locator('#settings');
+  await expect(settings).toBeVisible();
+  const play = page.locator('#play');
+  await page.evaluate(() => {
+    for (const target of document.querySelectorAll('#glade, #play')) {
+      target.addEventListener('pointerdown', () => { document.documentElement.dataset.backgroundPressed = 'true'; });
+    }
+  });
+  await settings.click();
+  const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await expect(dialog).toBeVisible();
+  await play.evaluate(button => button.focus());
+  await expect(dialog.getByRole('checkbox', { name: 'Sound effects' })).toBeFocused();
+  await dialog.getByRole('button', { name: 'Back' }).focus();
+  for (const key of ['Tab', 'Tab', 'Shift+Tab']) {
+    await page.keyboard.press(key);
+    expect(await page.evaluate(() => !!document.activeElement?.closest('figcaption, #glade, #profile-memory'))).toBe(false);
+  }
+  const footer = (await play.boundingBox())!;
+  const canvas = (await page.locator('#glade').boundingBox())!;
+  await page.mouse.click(canvas.x + 4, canvas.y + canvas.height / 2);
+  await page.mouse.click(footer.x + footer.width / 2, footer.y + footer.height / 2);
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('html')).not.toHaveAttribute('data-background-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Back' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeFocused();
+
+  const practice = page.locator('#practice');
+  await practice.click();
+  const mission = page.locator('[data-practice="2"]');
+  await mission.click();
+  await expect(page.locator('#briefing')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(mission).toBeFocused();
+  await mission.click();
+  await page.locator('#brief-back').click();
+  await expect(mission).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(practice).toBeFocused();
+});
 
 test('settings survive reload, and a muted tutorial still shows collected lights', async ({ page }) => {
   test.setTimeout(75_000);
