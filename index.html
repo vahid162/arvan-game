@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101916">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/src/shell.css">
+    <title>Light Hunt</title>
+    <script>
+      // The entry module cannot report a failed download or parse itself.
+      window.addEventListener('error', function (event) {
+        const failedDownload = event.target instanceof HTMLScriptElement && event.target.type === 'module';
+        const failedEntry = event instanceof ErrorEvent && Array.from(document.scripts).some(
+          script => script.type === 'module' && script.src === event.filename
+        );
+        if (!failedDownload && !failedEntry) return;
+        function showEntryFailure() {
+          const shell = document.getElementById('shell');
+          if (shell.dataset.state !== 'loading') return;
+          shell.dataset.state = 'failed';
+          document.getElementById('status').textContent = 'The preview could not load. Check your connection and reload.';
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', showEntryFailure, { once: true });
+        } else {
+          showEntryFailure();
+        }
+      }, true);
+    </script>
+  </head>
+  <body>
+    <main id="shell" data-state="loading">
+      <header class="masthead">
+        <h1><span class="brand-spark" aria-hidden="true"></span>Light Hunt</h1>
+        <span class="preview-label">Browser preview</span>
+      </header>
+      <figure>
+        <div id="viewport">
+          <canvas id="glade" role="img" aria-label="A golden firefly hovering among reeds in a blue-green clearing"></canvas>
+          <div class="notice">
+            <p id="status" role="status">Loading the clearing…</p>
+            <a href="" class="retry">Reload preview</a>
+          </div>
+        </div>
+        <figcaption>
+          <h2>Forest clearing</h2>
+          <button id="motion" type="button" hidden>
+            <span class="motion-icon" aria-hidden="true"></span>
+            <span id="motion-label">Pause motion</span>
+          </button>
+        </figcaption>
+      </figure>
+      <noscript><p>This preview needs JavaScript. Enable it in your browser and reload the page.</p></noscript>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

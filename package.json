@@ -1,0 +1,30 @@
+{
+  "name": "light-hunt",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "26.13.1"
+  },
+  "packageManager": "npm@11.20.0",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "lint": "oxlint --deny-warnings .",
+    "test:unit": "vitest run tests/unit",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "test:browser": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "@types/three": "0.187.0",
+    "oxlint": "1.94.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
+  }
+}

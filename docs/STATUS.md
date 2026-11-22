@@ -1,13 +1,29 @@
 # Light Hunt development status
 
-**P00 · COMPLETE** — repository discovery and development handoff, 22 November 2026.
+**P01 · COMPLETE** — the browser shell renders a firefly in a responsive WebGL 2 scene. The clean build, static checks, three unit tests and seven browser tests passed on 22 November 2026. [Mobile viewport capture](evidence/p01-mobile.png)
 
-**Next phase** — P01, the browser shell and test foundation, awaits a phase request. Its first demonstration is a rendered placeholder firefly, a readable fallback when WebGL 2 is unavailable, and a browser smoke test from a clean build. [P01 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p01--create-the-install-free-browser-shell-and-test-foundation)
+**Next phase** — P02, the minimal ArvanCloud delivery proof, awaits a separate phase request. Its live probe also needs an authorized target. [P02 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p02--prove-the-smallest-arvancloud-delivery-path)
 
 | Phase | State |
 | --- | --- |
 | P00 | `COMPLETE` |
-| P01–P15 | `NOT_STARTED` |
+| P01 | `COMPLETE` |
+| P02–P15 | `NOT_STARTED` |
+
+## P01 evidence
+
+P01 starts at the [merged P00 baseline](https://github.com/vahid162/arvan-game/pull/1). Source and test revision `56dfd0f` contains the browser shell, the Three.js firefly and the tests. The [developer instructions](../README.md#developer-setup) reproduce the preview.
+
+| Check | Observed result |
+| --- | --- |
+| Clean install and build (T01) | `PASS`. A fresh Linux x64 checkout installed 52 packages from the lockfile with `npm ci --offline --no-audit --no-fund` using a populated npm cache. `npm run build` ran strict type checking and Vite. Two builds produced byte-identical files. |
+| Static and unit checks | `PASS`. `npm run lint` passed. All three `npm run test:unit` cases passed for portrait and landscape framing, pixel density, and a zero-sized viewport. |
+| Chromium smoke and recovery (T02–T03, local scope) | `PASS`. `P01_CAPTURE=1 npm run test:browser` passed all seven tests in a clean checkout. A fresh profile loaded same-origin assets and rendered visible firefly pixels without uncaught errors. Resizing kept the same WebGL context. Pausing held the rendered frame. An unavailable WebGL 2 context showed guidance, and a graphics startup failure, missing entry script and truncated entry script each recovered on reload. |
+| Browser package | `PASS`. Inspected `dist/` and resolved the entry page's script and stylesheet against the build. It contains one HTML page, one stylesheet, the entry script and the lazy renderer chunk. There are no credential files, source maps, service workers or install manifests. |
+
+The [390 × 844 capture](evidence/p01-mobile.png) came from headless Chromium 159.0.8154.6 with SwiftShader at an emulated mobile viewport. It demonstrates the local shell and placeholder. Real-phone performance, game rules, and hosted HTTPS acceptance belong to later phases.
+
+The build used Node 26.13.1 and npm 11.20.0 on Ubuntu 22.04 x64. The SHA-256 of the sorted build file hashes is `303a471b55072bb9c024327c2a6c39aa67509e5264cff63150d376fa36d4e560`. From `dist/`, reproduce it with `sha256sum assets/* index.html | sha256sum`. Vite reported its default chunk-size advisory for the lazy Three.js renderer (565 kB minified, 142 kB gzip).
 
 ## P00 evidence
 

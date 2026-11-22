@@ -4,21 +4,33 @@ Light Hunt is a single-player browser game in development. The player guides a f
 
 ## Developer setup
 
-Git is sufficient to inspect the P00 baseline. From a fresh working directory, run
+The P01 preview renders a firefly in a forest clearing using WebGL 2. To run it locally, use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
 
 ```sh
-git clone https://github.com/vahid162/arvan-game.git
-cd arvan-game
-git status --short --branch
-git log -1 --oneline
-git ls-files
+npm ci
+npm run dev
 ```
 
-Start with the [current phase and verification record](docs/STATUS.md). The baseline contains the design and development handoff. P01 introduces the first runnable browser shell, dependency lockfile, and build and test commands.
+Open the local URL printed by Vite. A supported browser shows the animated firefly. The motion control pauses or resumes it, and a reduced-motion preference starts the scene paused. A browser without WebGL 2 displays a compatibility message.
+
+## Build and verify
+
+| Command | What it does |
+| --- | --- |
+| `npm run typecheck` | Checks the browser source and tests in strict TypeScript mode |
+| `npm run lint` | Checks the code with Oxlint |
+| `npm run test:unit` | Tests viewport sizing and the rendering-density cap |
+| `npm run build` | Type-checks and produces the static browser files in `dist/` |
+| `npm run preview` | Serves that build locally |
+| `npm run test:browser` | Builds, starts an isolated local preview on port 4173 and runs the Chromium tests |
+
+For the browser tests, install the Chromium headless shell once with `npm exec -- playwright install --only-shell chromium`. On Linux, Playwright may also require system libraries. Its `install-deps chromium` command installs those on a developer machine with package-management permission. Port 4173 must be free for the tests. Set `P01_CAPTURE=1` when running them to refresh the [mobile viewport capture](docs/evidence/p01-mobile.png).
+
+See the [phase status](docs/STATUS.md) for results and the next development milestone.
 
 | To find | Read |
 | --- | --- |
 | Game rules, first-release scope and requirement IDs G01–G33 | [Game specification](docs/Light_Hunt_Complete_Game_Scenario_EN.md) |
 | Phase deliverables, prerequisites and acceptance checks T01–T60 | [Phased implementation plan](docs/Light_Hunt_Codex_Phased_Implementation_Plan_EN.md) |
-| Browser and Edge responsibilities and tool versions chosen for P01 | [Architecture](docs/ARCHITECTURE.md) |
+| Browser and Edge responsibilities and verified tool versions | [Architecture](docs/ARCHITECTURE.md) |
 | Instructions for development agents | [Repository instructions](AGENTS.md) |
