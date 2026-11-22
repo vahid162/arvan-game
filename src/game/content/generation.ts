@@ -1,14 +1,18 @@
 import { sweepLights } from '../core/collection';
-import type { Anchor, GeneratedMission, TunnelInstance } from '../core/types';
+import type { Anchor, GeneratedMission, MissionIdentity, TunnelInstance } from '../core/types';
 import { FOREST_MISSIONS, P07_MISSION } from './fixtures';
 
 export const TUNNEL_TEMPLATE_IDS = ['shallow-bend', 'wide-sweep', 'root-dip'] as const;
 export type TunnelTemplateId = typeof TUNNEL_TEMPLATE_IDS[number];
+export const LEGACY_CONTENT_VERSION = 'forest-routes-1';
+export const CURRENT_CONTENT_VERSION = 'forest-routes-2';
+export const TUNED_ENTRANCE_DISCOVERY_RADIUS = 1.58;
+type ContentVersion = typeof LEGACY_CONTENT_VERSION | typeof CURRENT_CONTENT_VERSION;
 type MissionIndex = 0 | 1 | 2;
 type Layout = Omit<GeneratedMission, 'manifestHash'>;
 
 const generatorVersion = 'seeded-forest-1';
-const contentVersion = 'forest-routes-1';
+const tunedLateralSpread = 1.14;
 const maxAttempts = 4;
 const anchors = P07_MISSION.tunnels;
 const patterns = [
@@ -130,12 +134,16 @@ export function defaultCampaignSeed(index: MissionIndex): string {
   return FOREST_MISSIONS[index].definition.id + '/campaign';
 }
 
-export function generateMission(index: MissionIndex, seed: string, attemptLimit = maxAttempts): GeneratedMission {
+export function generateMission(
+  index: MissionIndex, seed: string, attemptLimit = maxAttempts, contentVersion: ContentVersion = CURRENT_CONTENT_VERSION,
+): GeneratedMission {
   if (!seed) throw new Error('A mission seed is required');
   const limit = Number.isFinite(attemptLimit) ? Math.min(maxAttempts, Math.max(0, Math.floor(attemptLimit))) : maxAttempts;
   const definition = FOREST_MISSIONS[index].definition;
   const version = limit === maxAttempts ? generatorVersion : generatorVersion + '/limit-' + limit;
-  const random = randomFor(JSON.stringify([definition.id, seed, version, contentVersion]));
+  // Keep tunnel assignments and pattern choices identical when only their lane spread changes.
+  const random = randomFor(JSON.stringify([definition.id, seed, version, LEGACY_CONTENT_VERSION]));
+  const spread = contentVersion === CURRENT_CONTENT_VERSION ? tunedLateralSpread : 1;
   for (let attempt = 0; attempt <= limit; attempt++) {
     // The last proposal is the authored fallback and consumes no random numbers.
     const fallback = attempt === limit;
@@ -149,7 +157,7 @@ export function generateMission(index: MissionIndex, seed: string, attemptLimit 
       return {
         ...anchor, id, templateId: TUNNEL_TEMPLATE_IDS[templateOrder[slot]!],
         lights: anchor.lights.map((light, i) => {
-          const lane = pattern[i]!;
+          const lane = pattern[i]! * spread;
           return { ...light, id: id + '/light-' + (i + 1), lateral: lane === 0 ? 0 : sign * lane };
         }),
       };
@@ -163,4 +171,12 @@ export function generateMission(index: MissionIndex, seed: string, attemptLimit 
     if (fallback) throw new Error(`Invalid authored fallback for ${definition.id} seed ${seed}: ${issues.join(', ')}`);
   }
   throw new Error('Generation exhausted without a fallback');
+}
+
+export function reproduceMission(index: MissionIndex, identity: MissionIdentity): GeneratedMission | null {
+  const { seed, contentVersion, generatorVersion: savedGenerator, manifestHash } = identity;
+  if (!seed || savedGenerator !== generatorVersion ||
+      (contentVersion !== LEGACY_CONTENT_VERSION && contentVersion !== CURRENT_CONTENT_VERSION)) return null;
+  const mission = generateMission(index, seed, maxAttempts, contentVersion);
+  return mission.manifestHash === manifestHash ? mission : null;
 }

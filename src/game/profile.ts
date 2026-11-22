@@ -1,5 +1,5 @@
 import { FOREST, FOREST_MISSIONS, UPGRADES } from './content/fixtures';
-import { defaultCampaignSeed, generateMission } from './content/generation';
+import { defaultCampaignSeed, generateMission, reproduceMission } from './content/generation';
 import type { AttemptMode, GeneratedMission, Loadout, MissionIdentity, Profile, UpgradeId } from './core/types';
 
 export const PROFILE_KEY = 'light-hunt.profile.v1';
@@ -32,6 +32,11 @@ function freshProfile(): Profile {
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function missionIdentity(value: unknown): value is MissionIdentity {
+  return record(value) && typeof value.seed === 'string' && value.seed.length > 0 &&
+    typeof value.generatorVersion === 'string' && typeof value.contentVersion === 'string' && typeof value.manifestHash === 'string';
 }
 
 function identityOf({ seed, generatorVersion, contentVersion, manifestHash }: GeneratedMission): MissionIdentity {
@@ -72,10 +77,9 @@ function validProfile(value: Record<string, unknown>): boolean {
   const eligibleRecords = new Map<string, number>();
   for (const [id, receipt] of Object.entries(assigned)) {
     const index = FOREST.missionIds.indexOf(id);
-    if (index < 0 || index > completed.length || !record(receipt) || typeof receipt.seed !== 'string' || !receipt.seed) return false;
-    const mission = generateMission(index as MissionIndex, receipt.seed);
-    if (receipt.generatorVersion !== mission.generatorVersion || receipt.contentVersion !== mission.contentVersion ||
-        receipt.manifestHash !== mission.manifestHash) return false;
+    if (index < 0 || index > completed.length || !missionIdentity(receipt)) return false;
+    const mission = reproduceMission(index as MissionIndex, receipt);
+    if (!mission) return false;
     if (restored && pending === null) {
       for (const loadout of loadouts) eligibleRecords.set(practiceKey(id, mission, loadout), mission.definition.targetLight);
     }
@@ -156,8 +160,9 @@ export async function openProfile(): Promise<ProfileStore> {
       const id = FOREST.missionIds[index];
       if (!id || !writable() || profile.pendingPresentationMissionId !== null || index !== profile.completedMissionIds.length) return null;
       const assigned = profile.assignedMissions[id];
-      const mission = generateMission(index, assigned?.seed ?? defaultCampaignSeed(index));
-      if (!assigned) commit({ ...profile, assignedMissions: { ...profile.assignedMissions, [id]: identityOf(mission) } });
+      if (assigned) return reproduceMission(index, assigned);
+      const mission = generateMission(index, defaultCampaignSeed(index));
+      commit({ ...profile, assignedMissions: { ...profile.assignedMissions, [id]: identityOf(mission) } });
       return mission;
     },
     completeMission(mission, mode = 'story') {
@@ -182,7 +187,7 @@ export async function openProfile(): Promise<ProfileStore> {
       if (!practiceOpen() || !Number.isInteger(index)) return null;
       const id = FOREST.missionIds[index];
       const assigned = id && profile.assignedMissions[id];
-      return assigned ? generateMission(index, assigned.seed) : null;
+      return assigned ? reproduceMission(index, assigned) : null;
     },
     recordPractice(mission, loadout, score) {
       const entry = compatibleRecord(mission, loadout);

@@ -1,5 +1,7 @@
 # Light Hunt development status
 
+**P11-A · READY_FOR_REVIEW** — difficulty tuning on `feat/p11-a-difficulty-balance` awaits owner playtest. The approved P10 build at `4fa8d16` is the comparison baseline.
+
 **P10 · READY_FOR_REVIEW** — the full forest campaign, upgrade shop and reward-free practice are playable locally on `feat/p07-p10-gameplay-loop`. [Play the game](../README.md#developer-setup)
 
 **P06 · READY_FOR_REVIEW** — the one-tunnel demo is playable locally. Owner feedback on steering and camera feel and physical-phone verification remain open. [Play the demo](../README.md#developer-setup)
@@ -19,7 +21,8 @@
 | P08 | `COMPLETE` |
 | P09 | `COMPLETE` |
 | P10 | `READY_FOR_REVIEW` |
-| P11–P15 | `NOT_STARTED` |
+| P11-A difficulty adjustment | `READY_FOR_REVIEW` |
+| Remaining P11 presentation and P12–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -56,6 +59,14 @@ A winning frame saves the elixir delivery and restoration before the return anim
 Purchasing the 10% exploration upgrade leaves 4 crystals, or the 10% collection upgrade leaves 2. Ownership and balance survive reload. Practice uses the chosen mission’s original darkness, time and target. It records a best score for that mission and equipment while preserving story progress and currency.
 
 Strict TypeScript and lint passed. All 121 unit cases, 29 Edge contract cases and 26 Chromium cases passed across the first runs and focused reruns. Chromium completed the campaign and a 22-light practice run and exercised both purchases. Controlled cases checked both 10% radius effects. The slow host caused initial setup and geometry timeouts. The retry test now checks the saved layout identity and repeat collection directly. P06 device acceptance and the P02 live probe remain open.
+
+## P11-A difficulty checkpoint
+
+For new story assignments, entrances appear at 1.58 ground units instead of 1.86. The same seeded light trails call for 14% more sideways travel. The release ring, collision reach, forward speed, clock, mission targets and economy retain their P10 values. `forest-routes-2` identifies the tuned layouts. Previously assigned missions and their practice records still use their saved version and seed.
+
+The same-seed comparison on mission 3 found 14 lights within reach of a centered flight in P10 and 12 after tuning. A model using base equipment, a 250 ms steering delay and a 0.10-unit aiming offset reached all 36 on each of the three campaign seeds. The existing validator checked 3,000 tuned seeds, with the slowest direct route at 29.197 active seconds. Archived P10 saves verified unfinished layouts, progress, upgrade ownership, both practice records and reward claims. These measurements support owner difficulty review. Perceived difficulty and physical-device comfort still need player feedback. The live P02 probe remains open.
+
+Strict TypeScript, lint and 43 focused unit cases passed. Seven Chromium cases passed across focused runs. They checked the visible entrance and release boundary, same-layout retry and deadline, three campaign wins with reload and one-time reward, and upgraded practice.
 
 ## P02 evidence
 

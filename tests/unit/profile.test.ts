@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { generateMission } from '../../src/game/content/generation';
+import { CURRENT_CONTENT_VERSION, generateMission } from '../../src/game/content/generation';
 import type { Loadout, UpgradeId } from '../../src/game/core/types';
 import { openProfile, PROFILE_KEY, type ProfileStore } from '../../src/game/profile';
 
@@ -277,5 +277,66 @@ it('retains both the owned level and its deduction only in memory if persisting 
   const reloaded = await host.reopen(store);
   expect(reloaded.profile.crystals).toBe(12);
   expect(reloaded.profile.upgrades).toEqual({});
+  reloaded.close();
+});
+
+// These receipts, record keys and lanes were captured from the P10 build at 4fa8d16.
+function p10Receipt(id: string, digest: string) {
+  return { seed: id + '/campaign', generatorVersion: 'seeded-forest-1', contentVersion: 'forest-routes-1', manifestHash: 'fnv1a64:' + digest };
+}
+const p10Profile = {
+  version: 1, completedMissionIds: ['forest-1', 'forest-2', 'forest-3'], claimedWorldIds: ['forest'],
+  crystals: 2, upgrades: { 'collection-radius': 1 },
+  assignedMissions: {
+    'forest-1': p10Receipt('forest-1', 'f4398e92181cf321'), 'forest-2': p10Receipt('forest-2', 'f3a8d6e95d4701b4'),
+    'forest-3': p10Receipt('forest-3', 'd16f930ceb6d4fda'),
+  },
+  pendingPresentationMissionId: null,
+  practiceRecords: {
+    '["forest-1","forest-1/campaign","seeded-forest-1","forest-routes-1","fnv1a64:f4398e92181cf321","forest-practice-rules-1",0,0]': 19,
+    '["forest-1","forest-1/campaign","seeded-forest-1","forest-routes-1","fnv1a64:f4398e92181cf321","forest-practice-rules-1",0,1]': 22,
+  },
+  settings: { sound: true, reducedMotion: false, sensitivity: 1 },
+};
+const p10Lanes = [0, -0.52, -1.02, -0.72, -0.24, 0.54, 1.08, 0.62, -0.16, -0.82, -0.44, 0.25];
+
+it('opens the completed P10 save byte-for-byte with its original practice lanes and equipped and base records', async () => {
+  const raw = JSON.stringify(p10Profile);
+  const host = browser(raw);
+  const store = await openProfile();
+  expect(store.status).toBe('durable');
+  expect(store.profile).toEqual(p10Profile);
+  const first = store.practiceMission(0)!;
+  expect(first).toMatchObject(p10Profile.assignedMissions['forest-1']);
+  expect(first.tunnels[0]!.lights.map(light => light.lateral)).toEqual(p10Lanes);
+  expect(store.practiceBest(first, {})).toBe(19);
+  expect(store.practiceBest(first, { 'collection-radius': 1 })).toBe(22);
+  expect(store.practiceBest(generateMission(0, first.seed), {})).toBeNull();
+  expect(store.purchaseUpgrade('collection-radius')).toBe('owned');
+  expect(host.storage.setItem).not.toHaveBeenCalled();
+  expect(host.raw()).toBe(raw);
+  store.close();
+});
+
+it('resumes an unfinished P10 layout exactly and assigns current content only when the next mission opens', async () => {
+  const firstReceipt = p10Profile.assignedMissions['forest-1'];
+  const raw = JSON.stringify({ ...p10Profile, completedMissionIds: [], claimedWorldIds: [], crystals: 0, upgrades: {},
+    assignedMissions: { 'forest-1': firstReceipt }, practiceRecords: {} });
+  const host = browser(raw);
+  const store = await openProfile();
+  const first = store.assignMission(0)!;
+  expect(first).toMatchObject(firstReceipt);
+  expect(first.tunnels[0]!.lights.map(light => light.lateral)).toEqual(p10Lanes);
+  expect(store.completeMission(generateMission(0, first.seed))).toBe(false);
+  expect(host.raw()).toBe(raw);
+  expect(store.completeMission(first)).toBe(true);
+  store.finishPresentation(first.definition.id);
+  const second = store.assignMission(1)!;
+  expect(second.contentVersion).toBe(CURRENT_CONTENT_VERSION);
+  expect(store.profile.assignedMissions['forest-1']).toEqual(firstReceipt);
+  const reloaded = await host.reopen(store);
+  expect(reloaded.status).toBe('durable');
+  expect(reloaded.assignMission(1)).toEqual(second);
+  expect(reloaded.profile.assignedMissions['forest-1']).toEqual(firstReceipt);
   reloaded.close();
 });

@@ -1,23 +1,86 @@
 import { expect, it } from 'vitest';
-import { defaultCampaignSeed, generateMission, TUNNEL_TEMPLATE_IDS, validateLayout } from '../../src/game/content/generation';
+import {
+  CURRENT_CONTENT_VERSION, defaultCampaignSeed, generateMission, LEGACY_CONTENT_VERSION, reproduceMission,
+  TUNNEL_TEMPLATE_IDS, validateLayout,
+} from '../../src/game/content/generation';
 import { P07_MISSION } from '../../src/game/content/fixtures';
+import { PLAYER_RADIUS } from '../../src/game/core/collection';
+import type { TunnelInstance } from '../../src/game/core/types';
 
 const indices = [0, 1, 2] as const;
 
-it('reconstructs the three campaign manifests with stable versioned identities', () => {
+it('reconstructs the original campaign manifests with their P10 hashes', () => {
   const hashes = ['fnv1a64:f4398e92181cf321', 'fnv1a64:f3a8d6e95d4701b4', 'fnv1a64:d16f930ceb6d4fda'];
   const targets = [22, 25, 28];
   for (const index of indices) {
     const seed = defaultCampaignSeed(index);
-    const mission = generateMission(index, seed);
+    const mission = generateMission(index, seed, undefined, LEGACY_CONTENT_VERSION);
     expect(mission.seed).toBe(seed);
     expect(mission.generatorVersion).toBe('seeded-forest-1');
     expect(mission.contentVersion).toBe('forest-routes-1');
     expect(mission.manifestHash).toBe(hashes[index]);
     expect(mission.definition).toMatchObject({ id: `forest-${index + 1}`, timeLimitMs: 90_000, targetLight: targets[index] });
-    expect(generateMission(index, seed)).toEqual(mission);
+    expect(reproduceMission(index, mission)).toEqual(mission);
     expect(JSON.parse(JSON.stringify(mission))).toEqual(mission);
   }
+});
+
+function lateralTravel(tunnel: TunnelInstance) {
+  let previous = 0;
+  let travel = 0;
+  for (const light of tunnel.lights) {
+    travel += Math.abs(light.lateral - previous);
+    previous = light.lateral;
+  }
+  return travel;
+}
+
+function scoreWithLateAiming(tunnel: TunnelInstance) {
+  let previousDistance = 0;
+  let lateral = 0;
+  let score = 0;
+  const laneLimit = tunnel.width / 2 - 0.43;
+  for (const [index, light] of tunnel.lights.entries()) {
+    // Wait 250 ms before steering toward the next light and aim 0.10 units off-center.
+    const aim = Math.max(-laneLimit, Math.min(laneLimit, light.lateral + (index % 2 ? -0.10 : 0.10)));
+    const delta = aim - lateral;
+    const available = Math.max(0, (light.distance - previousDistance) / tunnel.speed - 0.25) * 3;
+    lateral += Math.sign(delta) * Math.min(Math.abs(delta), available);
+    if (Math.abs(light.lateral - lateral) <= PLAYER_RADIUS + light.radius) score++;
+    previousDistance = light.distance;
+  }
+  return score;
+}
+
+it.each(indices)('needs more lateral travel while keeping steering room in forest mission %i', index => {
+  const seed = defaultCampaignSeed(index);
+  const baseline = generateMission(index, seed, undefined, LEGACY_CONTENT_VERSION);
+  const tuned = generateMission(index, seed);
+  expect(tuned.contentVersion).toBe(CURRENT_CONTENT_VERSION);
+  expect(tuned.manifestHash).not.toBe(baseline.manifestHash);
+  expect(reproduceMission(index, tuned)).toEqual(tuned);
+  expect(reproduceMission(index, { ...tuned, manifestHash: baseline.manifestHash })).toBeNull();
+  expect(tuned.definition).toEqual(baseline.definition);
+
+  let baselineScore = 0;
+  let tunedScore = 0;
+  let baselineCentered = 0;
+  let tunedCentered = 0;
+  const inCenterReach = (light: TunnelInstance['lights'][number]) => Math.abs(light.lateral) <= PLAYER_RADIUS + light.radius;
+  tuned.tunnels.forEach((tunnel, slot) => {
+    const original = baseline.tunnels[slot]!;
+    expect(tunnel).toEqual({
+      ...original, lights: original.lights.map(light => ({ ...light, lateral: light.lateral * 1.14 })),
+    });
+    expect(lateralTravel(tunnel) / lateralTravel(original)).toBeCloseTo(1.14);
+    baselineScore += scoreWithLateAiming(original);
+    tunedScore += scoreWithLateAiming(tunnel);
+    baselineCentered += original.lights.filter(inCenterReach).length;
+    tunedCentered += tunnel.lights.filter(inCenterReach).length;
+  });
+  expect(tunedCentered).toBeLessThanOrEqual(baselineCentered);
+  expect(tunedScore).toBeGreaterThanOrEqual(tuned.definition.targetLight + 3);
+  console.info(`${tuned.definition.id}: centered ${baselineCentered} → ${tunedCentered}, late aiming ${baselineScore} → ${tunedScore} (out of 36)`);
 });
 
 it('rejects invalid connections, geometry, IDs and unreachable light spacing', () => {

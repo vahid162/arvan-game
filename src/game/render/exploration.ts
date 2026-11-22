@@ -17,6 +17,7 @@ interface ExplorationOptions {
   bounds: Bounds;
   story?: boolean;
   lightRadiusScale?: number;
+  entranceDiscoveryRadius?: number;
 }
 interface ExplorationFrame {
   position: Anchor;
@@ -218,7 +219,11 @@ function makeEntrance(anchor: Entrance, id?: string) {
   return { anchor, id, group, pit, rim, cues, closed };
 }
 
-export function createExplorationWorld({ entry, entries, bounds, story = false, lightRadiusScale = 1 }: ExplorationOptions) {
+const baseLightRadius = 1.86;
+
+export function createExplorationWorld({
+  entry, entries, bounds, story = false, lightRadiusScale = 1, entranceDiscoveryRadius = baseLightRadius,
+}: ExplorationOptions) {
   const scene = new Scene();
   const sky = new Color(0x10292e);
   const mist = new FogExp2(0x173737, 0.038);
@@ -233,7 +238,8 @@ export function createExplorationWorld({ entry, entries, bounds, story = false, 
   if (guardian) scene.add(guardian.group);
 
   const lightAt = new Vector2();
-  const poolRadii = new Vector2(0.06, 1.86).multiplyScalar(lightRadiusScale);
+  const poolRadii = new Vector2(0.06, baseLightRadius).multiplyScalar(lightRadiusScale);
+  const discoveryRadius = entranceDiscoveryRadius * lightRadiusScale;
   const fullRevealRadius = 0.75 * lightRadiusScale;
   const aperture = new Vector3();
   const restorationFront = { value: 200 };
@@ -325,7 +331,7 @@ export function createExplorationWorld({ entry, entries, bounds, story = false, 
     for (const entrance of entrances) {
       const { anchor, group, rim, cues, closed, id } = entrance;
       const distance = Math.hypot(position.x - anchor.x, position.z - anchor.z);
-      const visibility = 1 - MathUtils.smoothstep(distance, fullRevealRadius, poolRadii.y);
+      const visibility = 1 - MathUtils.smoothstep(distance, fullRevealRadius, discoveryRadius);
       const taken = consumedIds && id !== undefined ? consumedIds.has(id) : !!used && entrance === entrances[0];
       const active = readyId !== undefined ? readyId === id : !!ready && entrance === entrances[0];
       group.visible = visibility > 0;

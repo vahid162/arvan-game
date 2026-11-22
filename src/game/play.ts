@@ -1,4 +1,5 @@
 import { TUNNEL_DEMO, UPGRADES } from './content/fixtures';
+import { CURRENT_CONTENT_VERSION, TUNED_ENTRANCE_DISCOVERY_RADIUS } from './content/generation';
 import { createAttempt, reduceAttempt } from './core/attempt';
 import { sweepLights } from './core/collection';
 import type { Anchor, AttemptMode, GeneratedMission, Loadout } from './core/types';
@@ -62,7 +63,10 @@ export function createGame(
   const collectionScale = attempt.loadout[collectionUpgrade.id] ? collectionUpgrade.multiplier : 1;
   const totalLights = mission.tunnels.reduce((sum, track) => sum + track.lights.length, 0);
   const entries = mission.tunnels.map(tunnel => ({ ...tunnel.entry, id: tunnel.id, radius: entryRadius }));
-  const world = createExplorationWorld({ entry: entries[0]!, entries, bounds, story: !demo, lightRadiusScale });
+  const world = createExplorationWorld({
+    entry: entries[0]!, entries, bounds, story: !demo, lightRadiusScale,
+    entranceDiscoveryRadius: mission.contentVersion === CURRENT_CONTENT_VERSION ? TUNED_ENTRANCE_DISCOVERY_RADIUS : undefined,
+  });
   let restoration = options.restored ?? 0;
   world.setRestoration(restoration);
   const routes = mission.tunnels.map(tunnel => {

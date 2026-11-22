@@ -15,12 +15,17 @@ export async function storyPhase(page: Page, phase: string) {
   await expect(page.locator('#game')).toHaveAttribute('data-phase', phase);
 }
 
-export async function releaseAt(page: Page, anchor: Anchor) {
+export async function groundScreenPoint(page: Page, anchor: Anchor) {
   const box = (await page.locator('#glade').boundingBox())!;
   const camera = new PerspectiveCamera();
   frameExplorationCamera(camera, { halfWidth: 3.7, halfDepth: 3.8 }, box.width / box.height);
   const projected = new Vector3(anchor.x, 0, anchor.z).project(camera);
-  await page.mouse.click(box.x + (projected.x + 1) * box.width / 2, box.y + (1 - projected.y) * box.height / 2);
+  return { x: box.x + (projected.x + 1) * box.width / 2, y: box.y + (1 - projected.y) * box.height / 2 };
+}
+
+export async function releaseAt(page: Page, anchor: Anchor) {
+  const point = await groundScreenPoint(page, anchor);
+  await page.mouse.click(point.x, point.y);
 }
 
 export async function enterTunnel(page: Page, tunnel: TunnelInstance) {

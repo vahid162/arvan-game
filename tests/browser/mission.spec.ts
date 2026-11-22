@@ -4,7 +4,7 @@ import { PLAYER_RADIUS } from '../../src/game/core/collection';
 import type { Profile, TunnelInstance } from '../../src/game/core/types';
 import { PROFILE_KEY } from '../../src/game/profile';
 import {
-  beginCentered, collectLights, enterTunnel, exitMs, freezeStoryClock, mouseSteering, releaseAt,
+  beginCentered, collectLights, enterTunnel, exitMs, freezeStoryClock, groundScreenPoint, mouseSteering, releaseAt,
   remainingMissionMs, startBriefedMission, storyPhase, travelMs, winStoryMission,
 } from './story-controls';
 
@@ -43,6 +43,53 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: 'Play story' }).click();
   await expect(page.getByRole('heading', { name: 'Mission 1 of 3', exact: true })).toBeVisible();
   await startBriefedMission(page, openingMission);
+});
+
+test('a tuned opening is visible before it is close enough to enter', async ({ page }) => {
+  const entrance = openingMission.tunnels.reduce((nearest, tunnel) =>
+    Math.abs(nearest.entry.x) < Math.abs(tunnel.entry.x) ? nearest : tunnel).entry;
+  const center = await groundScreenPoint(page, entrance);
+  const game = page.locator('#game');
+  async function colorAtDistance(distance: number) {
+    const position = await groundScreenPoint(page, { x: entrance.x + distance, z: entrance.z });
+    await page.mouse.move(position.x, position.y);
+    await expect(game).toHaveAttribute('data-ready', 'false');
+    // Sample the ground at the center, away from the rim and moving firefly.
+    const patch = await page.screenshot({
+      clip: { x: Math.floor(center.x) - 3, y: Math.floor(center.y) - 3, width: 7, height: 7 }, scale: 'css',
+    });
+    return page.evaluate(async base64 => {
+      const image = new Image();
+      image.src = 'data:image/png;base64,' + base64;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d')!;
+      context.drawImage(image, 0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3);
+    }, patch.toString('base64'));
+  }
+  const contrast = (a: number[], b: number[]) => Math.max(...a.map((value, i) => Math.abs(value - b[i]!)));
+  const start = await groundScreenPoint(page, { x: entrance.x + 2, z: entrance.z });
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  const hidden = await colorAtDistance(1.72);
+  const visible = await colorAtDistance(1.42);
+  const closer = await colorAtDistance(1.10);
+  expect(contrast(visible, closer), `visible pit samples: ${visible} and ${closer}`).toBeLessThan(3);
+  expect(contrast(hidden, visible), `forest floor ${hidden} versus visible pit ${visible}`).toBeGreaterThan(4);
+
+  const outside = await groundScreenPoint(page, { x: entrance.x + 0.57, z: entrance.z });
+  await page.mouse.move(outside.x, outside.y);
+  await expect(game).toHaveAttribute('data-ready', 'false');
+  await page.mouse.up();
+  await storyPhase(page, 'explore');
+  await page.mouse.down();
+  const inside = await groundScreenPoint(page, { x: entrance.x + 0.41, z: entrance.z });
+  await page.mouse.move(inside.x, inside.y);
+  await expect(game).toHaveAttribute('data-ready', 'true');
+  await page.mouse.up();
+  await storyPhase(page, 'drop');
+  expect(await remainingMissionMs(page)).toBe(90_000);
 });
 
 test('the forest campaign unlocks the 25- and 28-light missions with fresh 90-second clocks', async ({ page }) => {
