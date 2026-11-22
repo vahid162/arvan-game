@@ -1,4 +1,5 @@
 node_modules/
 dist/
+dist-edge/
 test-results/
 playwright-report/
