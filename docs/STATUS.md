@@ -1,6 +1,8 @@
 # Light Hunt development status
 
-**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. P02 completion requires actual ArvanCloud evidence. The live probe awaits an approved account, target, asset origin and spending boundary. [P02 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p02--prove-the-smallest-arvancloud-delivery-path) · [Staging probe](../edge/README.md#staging-probe-after-approval)
+**P06 · READY_FOR_REVIEW** — the one-tunnel demo is playable locally. Owner feedback on steering and camera feel and physical-phone verification remain open. [Play the demo](../README.md#developer-setup)
+
+**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. The live probe awaits an approved account, target, asset origin and spending boundary. [Staging probe](../edge/README.md#staging-probe-after-approval)
 
 | Phase | State |
 | --- | --- |
@@ -10,7 +12,8 @@
 | P03 | `COMPLETE` |
 | P04 | `COMPLETE` |
 | P05 | `COMPLETE` |
-| P06–P15 | `NOT_STARTED` |
+| P06 | `READY_FOR_REVIEW` |
+| P07–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -23,6 +26,12 @@ The firefly lights a small area of the clearing. Pointer or keyboard input can f
 ## P05 checkpoint
 
 One distance-sampled curve connects the opening to a separate forest exit. The chase camera follows the centerline. The drop, ready and exit states freeze the clock. Geometry tests checked the camera seams, wall clearance and firefly framing in portrait and landscape. Chromium checked pause, resize and repeated rides on the same canvas. A 12-frame SwiftShader sample on the workspace host had a median interval of 150 ms. Physical-phone performance remains unmeasured. [Entry](evidence/p05-entry.png) · [Travel](evidence/p05-travel.png) · [Exit](evidence/p05-exit.png)
+
+## P06 checkpoint
+
+Fresh mouse, touch or keyboard input starts the tunnel. The firefly advances automatically while the player steers across the tunnel. Swept collision records first contact with each of 12 lights. Confirmed pickups update the score, flash and play a short note. The ride returns to the clearing and offers a same-layout retry.
+
+Strict TypeScript and lint passed. `npm run test:unit` passed 23 tests, `npm run test:edge` passed 29, and `npm run test:browser:edge` passed 14 through the local Edge adapter. All seven gameplay browser tests passed again after the final keyboard timing fix. Chromium collected 4 of 12 by staying centered and 12 of 12 by steering. The browser suite also checked touch lift and recontact, pause, and a long frame that spans the end of travel and the return while charging only the active time. The local production preview emitted four Web Audio notes on the four-pickup keyboard run. [Emulated tunnel](evidence/p06-tunnel.png) · [Emulated result](evidence/p06-result.png)
 
 ## P02 evidence
 

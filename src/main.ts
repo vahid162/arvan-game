@@ -61,10 +61,14 @@ function showHud(hud: GameHud) {
   gameClock.dataset.ms = String(Math.round(hud.timeLeftMs));
   const seconds = Math.ceil(hud.timeLeftMs / 1000);
   setText(gameClock, `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
-  setText(gameScore, `${hud.lights} light${hud.lights === 1 ? '' : 's'}`);
+  setText(gameScore, `${hud.lights} / ${hud.total} lights`);
+  gameScore.dataset.collecting = String(hud.collecting);
   setText(gameHint, hud.hint);
   setText(gameAction, hud.action);
-  setText(sceneTitle, hud.phase.startsWith('tunnel') ? 'Under the forest' : 'Forest clearing');
+  const underground = hud.phase.startsWith('tunnel');
+  setText(sceneTitle, underground ? 'Under the forest' : 'Forest clearing');
+  const playfield = underground ? 'Tunnel playfield' : 'Forest playfield';
+  if (canvas.getAttribute('aria-label') !== playfield) canvas.setAttribute('aria-label', playfield);
 }
 
 play.onclick = async () => {

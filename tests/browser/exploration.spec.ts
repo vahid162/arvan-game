@@ -68,8 +68,6 @@ test('invalid release preserves exploration time and a release inside the ring e
 test('a keyboard player can find the opening and deliberately release', async ({ page }) => {
   const game = page.locator('#game');
   await expect(page.locator('#glade')).toBeFocused();
-  await page.keyboard.press('Space');
-  await expect(game).toHaveAttribute('data-phase', 'explore');
   // Start at (-1.45, 1.35); held keys move at 2.8 world units per active second.
   await page.keyboard.down('ArrowRight');
   await page.clock.fastForward(1_036);

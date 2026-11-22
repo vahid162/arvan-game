@@ -4,14 +4,21 @@ Light Hunt is a single-player browser game in development. The player guides a f
 
 ## Developer setup
 
-The P01 preview renders a firefly in a forest clearing using WebGL 2. To run it locally, use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
+The playable demo covers one clearing and one tunnel with twelve lights. To run it locally, use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. A supported browser shows the animated firefly. The motion control pauses or resumes it, and a reduced-motion preference starts the scene paused. A browser without WebGL 2 displays a compatibility message.
+Open the local URL printed by Vite and select **Start exploring**.
+
+1. Hold and drag to guide the firefly, or move with the arrow keys. Look for an opening near the upper right of the clearing.
+2. Release when the amber ring and inward arrows appear. With a keyboard, press Space.
+3. At the tunnel entrance, move the mouse, touch the playfield again, or press Left or Right. Steer horizontally to collect lights as the firefly moves forward.
+4. Select **Try again** after returning to the clearing. **Pause** or Escape pauses the demo.
+
+The demo honors the browser’s reduced-motion preference and needs WebGL 2. Your score is for this run.
 
 ## Build and verify
 
@@ -19,7 +26,7 @@ Open the local URL printed by Vite. A supported browser shows the animated firef
 | --- | --- |
 | `npm run typecheck` | Checks the browser source and tests in strict TypeScript mode |
 | `npm run lint` | Checks the code with Oxlint |
-| `npm run test:unit` | Tests viewport sizing and the rendering-density cap |
+| `npm run test:unit` | Tests mission rules, continuous collection, camera geometry and viewport sizing |
 | `npm run build` | Type-checks and produces the static browser files in `dist/` |
 | `npm run preview` | Serves that build locally |
 | `npm run test:browser` | Builds, starts an isolated local preview on port 4173 and runs the Chromium tests |

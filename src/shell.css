@@ -111,6 +111,7 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   font-size: .88rem;
   font-variant-numeric: tabular-nums;
 }
+#game-score[data-collecting="true"] { color: var(--gold); }
 #game-hint {
   inset: auto .8rem .8rem;
   max-width: 27rem;

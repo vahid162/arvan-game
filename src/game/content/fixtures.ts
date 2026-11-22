@@ -43,3 +43,12 @@ export const FOREST_MISSIONS = [
   mission(1, 25, 'ed620ea2986864c32908e407d7628ca0b524ccaff7644eb1042d8e55ce199e66'),
   mission(2, 28, '99fb13720f50e71541c7f57b08a06f503b20152a63f01dc8f85a75b3bf93b04b'),
 ] as const;
+
+const demoTunnel = FOREST_MISSIONS[0].tunnels[0]!;
+export const TUNNEL_DEMO: GeneratedMission = {
+  definition: { id: 'tunnel-demo', worldId: FOREST.id, timeLimitMs: 90_000,
+    targetLight: demoTunnel.lights.length, restorationId: 'tunnel-demo' },
+  seed: 'forest/tunnel-demo', generatorVersion: 'fixed-fixture-1', contentVersion: 'forest-1',
+  manifestHash: '69704321e5e25c79f4d99ce06f0c28448b37b5987dee6e7e7828a1fe3d219c07',
+  tunnels: [demoTunnel],
+};

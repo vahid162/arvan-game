@@ -1,18 +1,23 @@
-import { FOREST_MISSIONS } from './content/fixtures';
+import { TUNNEL_DEMO as mission } from './content/fixtures';
 import { createAttempt, reduceAttempt } from './core/attempt';
+import { sweepLights } from './core/collection';
 import type { Anchor } from './core/types';
 import { bindControls } from './input/controls';
 import { createExplorationWorld } from './render/exploration';
+import { createTunnelLights } from './render/lights';
+import { createPickupSound } from './render/pickup-sound';
 import type { View } from './render/preview';
 import { createTunnelView } from './render/tunnel';
 
-const mission = FOREST_MISSIONS[0];
 const tunnel = mission.tunnels[0]!;
 const start: Anchor = { x: -1.45, z: 1.35 };
 const bounds = { halfWidth: 3.7, halfDepth: 3.8 };
 const entryRadius = 0.49;
 const dropMs = 1200;
 const exitMs = 1400;
+const laneLimit = tunnel.width / 2 - .43;
+const lateralPerMs = .003;
+const forwardPerMs = tunnel.speed / 1000;
 
 export interface GameHud {
   phase: string;
@@ -20,6 +25,8 @@ export interface GameHud {
   ready: boolean;
   timeLeftMs: number;
   lights: number;
+  total: number;
+  collecting: boolean;
   hint: string;
   action: string;
 }
@@ -37,6 +44,8 @@ export function createGame(
 ): GameView {
   const world = createExplorationWorld({ entry: { ...tunnel.entry, radius: entryRadius }, bounds });
   const travel = createTunnelView(world, tunnel);
+  const sparks = createTunnelLights(travel, tunnel);
+  const sound = createPickupSound();
   let run = 1;
   let attempt = createAttempt(mission, { mode: 'practice', id: String(run) });
   let position = start;
@@ -44,9 +53,18 @@ export function createGame(
   let feedbackUntil = 0;
   let reducedMotion = initialReducedMotion;
   let aspect = 0;
+  let viewport: DOMRect | undefined;
   let phaseTime = 0;
   let distance = 0;
+  let lateral = 0;
+  let desiredLateral = 0;
+  let pointerStartX = 0;
+  let pointerStartLane = 0;
+  let returning = false;
+  let returnPaused = false;
   let returned = false;
+  let visualMs = 0;
+  let pickupMs = -Infinity;
 
   function nearEntry() {
     return Math.hypot(position.x - tunnel.entry.x, position.z - tunnel.entry.z) <= entryRadius + 1e-9;
@@ -59,11 +77,72 @@ export function createGame(
     };
   }
 
+  function advanceTunnel(elapsedMs: number) {
+    let remaining = elapsedMs;
+    const direction = controls.move().x;
+    while (remaining > 1e-7 && attempt.phase === 'tunnel-active') {
+      const toEndMs = Math.max(0, (tunnel.length - distance) / forwardPerMs);
+      const target = direction ? direction * laneLimit : desiredLateral;
+      const delta = target - lateral;
+      // Limit each step and split again at the point a lateral target is reached.
+      const toTargetMs = Math.abs(delta) > 1e-7 ? Math.abs(delta) / lateralPerMs : Infinity;
+      const step = Math.min(remaining, toEndMs, toTargetMs, 32);
+      const next = {
+        distance: Math.min(tunnel.length, distance + forwardPerMs * step),
+        lateral: lateral + Math.sign(delta) * Math.min(Math.abs(delta), lateralPerMs * step),
+      };
+      const hits = sweepLights(tunnel.lights, { distance, lateral }, next, step, attempt.collectedIds);
+      const previous = attempt;
+      attempt = reduceAttempt(attempt, { type: 'advance', elapsedMs: step, hits, attemptId: attempt.id });
+      const portion = step ? Math.min(1, (attempt.activeTimeMs - previous.activeTimeMs) / step) : 0;
+      distance += (next.distance - distance) * portion;
+      lateral += (next.lateral - lateral) * portion;
+      if (attempt.collectedIds.size > previous.collectedIds.size) {
+        pickupMs = visualMs;
+        sound.play(attempt.collectedIds.size);
+      }
+      if (attempt.phase === 'success') {
+        returning = true;
+      } else if (!attempt.outcome && toEndMs - step < 1e-7) {
+        distance = tunnel.length;
+        attempt = reduceAttempt(attempt, { type: 'tunnel-finished' });
+        returning = true;
+      }
+      remaining -= step * (attempt.phase === 'success' ? portion : 1);
+    }
+    if (direction) desiredLateral = lateral;
+    if (returning) {
+      controls.reset();
+      if (remaining > 1e-7) advanceReturn(remaining);
+    }
+  }
+
+  function advanceReturn(elapsedMs: number) {
+    // A final hit can occur before the end. Coast along the same curve after success.
+    const coastMs = Math.min(elapsedMs, (tunnel.length - distance) / forwardPerMs);
+    distance = Math.min(tunnel.length, distance + coastMs * forwardPerMs);
+    phaseTime += elapsedMs - coastMs;
+    if (phaseTime < exitMs - 1e-7) return;
+    if (!attempt.outcome) attempt = reduceAttempt(attempt, { type: 'exit-finished' });
+    position = tunnel.exit;
+    returning = false;
+    returned = true;
+    phaseTime = 0;
+    distance = 0;
+  }
+
   function advanceTo(now: number) {
     const previous = lastFrame ?? now;
     const elapsedMs = Math.max(0, now - previous);
     lastFrame = Math.max(previous, now);
-    if (attempt.paused || attempt.outcome || returned) return;
+    if (attempt.paused || returnPaused || returned) return;
+    if (returning) {
+      visualMs += elapsedMs;
+      advanceReturn(elapsedMs);
+      return;
+    }
+    if (attempt.outcome) return;
+    visualMs += elapsedMs;
     if (attempt.phase === 'explore') {
       attempt = reduceAttempt(attempt, { type: 'advance', elapsedMs });
       if (attempt.phase !== 'explore') return;
@@ -78,24 +157,7 @@ export function createGame(
         phaseTime = 0;
       }
     } else if (attempt.phase === 'tunnel-active') {
-      const remainingMs = (tunnel.length - distance) / tunnel.speed * 1000;
-      const before = attempt.activeTimeMs;
-      attempt = reduceAttempt(attempt, { type: 'advance', elapsedMs: Math.min(elapsedMs, remainingMs) });
-      distance = Math.min(tunnel.length, distance + (attempt.activeTimeMs - before) * tunnel.speed / 1000);
-      if (!attempt.outcome && elapsedMs >= remainingMs) {
-        distance = tunnel.length;
-        attempt = reduceAttempt(attempt, { type: 'tunnel-finished' });
-        phaseTime = 0;
-      }
-    } else if (attempt.phase === 'exit') {
-      phaseTime += elapsedMs;
-      if (phaseTime >= exitMs) {
-        attempt = reduceAttempt(attempt, { type: 'exit-finished' });
-        position = tunnel.exit;
-        returned = true;
-        phaseTime = 0;
-        distance = 0;
-      }
+      advanceTunnel(elapsedMs);
     }
   }
 
@@ -112,18 +174,20 @@ export function createGame(
   }
 
   function pause() {
-    if (returned || attempt.outcome) return;
+    if (returned || (attempt.outcome && !returning)) return;
     advanceTo(performance.now());
-    attempt = reduceAttempt(attempt, { type: 'pause' });
+    if (returning) returnPaused = true;
+    else attempt = reduceAttempt(attempt, { type: 'pause' });
     controls.reset();
     redraw();
   }
 
   function togglePause() {
-    if (attempt.outcome || returned) return;
-    if (attempt.paused) {
+    if (returned || (attempt.outcome && !returning)) return;
+    if (attempt.paused || returnPaused) {
       lastFrame = performance.now();
       attempt = reduceAttempt(attempt, { type: 'resume' });
+      returnPaused = false;
       controls.reset();
       canvas.focus({ preventScroll: true });
       redraw();
@@ -133,22 +197,21 @@ export function createGame(
   }
 
   function action() {
-    if (attempt.paused) {
-      togglePause();
-    } else if (attempt.phase === 'tunnel-ready') {
-      lastFrame = performance.now();
-      attempt = reduceAttempt(attempt, { type: 'begin-tunnel' });
-      canvas.focus({ preventScroll: true });
-      redraw();
-    } else if (!attempt.outcome && !returned) {
+    if (returning || (!attempt.outcome && !returned)) {
       togglePause();
     } else {
-      attempt = createAttempt(mission, { mode: 'practice', id: String(++run) });
+      const id = String(++run);
+      attempt = attempt.outcome?.kind === 'failure'
+        ? reduceAttempt(attempt, { type: 'retry', id })
+        : createAttempt(mission, { mode: 'practice', id });
       position = start;
       lastFrame = performance.now();
       feedbackUntil = 0;
       phaseTime = 0;
       distance = 0;
+      lateral = 0;
+      visualMs = 0;
+      pickupMs = -Infinity;
       returned = false;
       controls.reset();
       canvas.focus({ preventScroll: true });
@@ -156,8 +219,20 @@ export function createGame(
     }
   }
 
+  function beginTunnel() {
+    if (attempt.phase !== 'tunnel-ready' || attempt.paused) return;
+    lastFrame = performance.now();
+    attempt = reduceAttempt(attempt, { type: 'begin-tunnel' });
+    sound.enable();
+    redraw();
+  }
+
   const controls = bindControls(canvas, {
-    phase: () => !attempt.paused && !returned && attempt.phase === 'explore' ? 'explore' : 'inactive',
+    phase() {
+      if (attempt.paused || returning || returned) return 'inactive';
+      if (attempt.phase === 'explore') return 'explore';
+      return attempt.phase === 'tunnel-ready' || attempt.phase === 'tunnel-active' ? 'tunnel' : 'inactive';
+    },
     point(clientX, clientY) {
       advanceTo(performance.now());
       if (attempt.paused || attempt.phase !== 'explore') return;
@@ -167,16 +242,34 @@ export function createGame(
       if (anchor) moveTo(anchor);
       redraw();
     },
+    steer(clientX, initial) {
+      advanceTo(performance.now());
+      if (returning || attempt.outcome) return;
+      beginTunnel();
+      if (initial) {
+        pointerStartX = clientX;
+        pointerStartLane = desiredLateral = lateral;
+        return;
+      }
+      const lane = pointerStartLane + (clientX - pointerStartX) * tunnel.width / (Math.max(1, canvas.clientWidth) * .65);
+      desiredLateral = Math.max(-laneLimit, Math.min(laneLimit, lane));
+    },
+    beforeInput: () => advanceTo(performance.now()),
+    beginTunnel,
+    endSteer: () => { desiredLateral = lateral; },
     release, pause, togglePause,
   });
 
   function hint(ready: boolean) {
-    if (attempt.paused) return 'Paused. Resume when you’re ready.';
-    if (returned) return 'Back above ground. Try the tunnel again.';
+    if (attempt.paused || returnPaused) return 'Paused. Resume when you’re ready.';
+    if (returned) {
+      const missed = tunnel.lights.length - attempt.collectedIds.size;
+      return missed ? `${missed} missed. Try again and steer toward the next light earlier.` : 'All 12 lights collected!';
+    }
+    if (returning) return 'Returning to the clearing…';
     if (attempt.phase === 'drop') return 'Dropping into the tunnel…';
-    if (attempt.phase === 'tunnel-ready') return 'Ready at the entrance. Begin the ride when you’re ready.';
-    if (attempt.phase === 'tunnel-active') return 'Follow the bend through the tunnel.';
-    if (attempt.phase === 'exit') return 'Returning to the clearing…';
+    if (attempt.phase === 'tunnel-ready') return 'Move the mouse, touch the tunnel, or press Left or Right to start.';
+    if (attempt.phase === 'tunnel-active') return 'Steer left and right to catch the lights.';
     if (attempt.phase === 'failure') return 'Time ran out. Try the clearing again.';
     if (ready) return 'Release here. On a keyboard, press Space.';
     if (attempt.activeTimeMs < feedbackUntil) return 'Whoops! Release over an opening when its ring appears.';
@@ -187,29 +280,37 @@ export function createGame(
     scene: world.scene,
     camera: travel.camera,
     resize(nextAspect) {
-      if (nextAspect === aspect) return;
-      aspect = nextAspect;
-      world.resize(aspect);
+      const next = canvas.getBoundingClientRect();
+      if (viewport?.width === next.width && viewport.height === next.height &&
+          viewport.left === next.left && viewport.top === next.top) return;
+      if (viewport) advanceTo(performance.now());
+      viewport = next;
+      if (aspect !== nextAspect) {
+        aspect = nextAspect;
+        world.resize(aspect);
+      }
       controls.rebase();
     },
     update(_elapsed, now) {
       if (now !== undefined) advanceTo(now);
       const ready = attempt.phase === 'explore' && !returned && nearEntry();
-      world.update({ position, ready, used: returned, elapsedSeconds: attempt.activeTimeMs / 1000, reducedMotion });
-      const phase = attempt.phase;
+      world.update({ position, ready, used: returned, elapsedSeconds: visualMs / 1000, reducedMotion });
+      const phase = returning ? 'exit' : returned ? 'explore' : attempt.phase;
       const pose = phase === 'drop' || phase === 'exit' ? phase
         : phase === 'tunnel-ready' ? 'ready'
         : phase === 'tunnel-active' || (phase === 'failure' && distance > 0) ? 'tunnel' : 'explore';
       travel.applyPose({
-        phase: pose, position, distance, lateral: 0, reducedMotion,
+        phase: returning && distance < tunnel.length ? 'tunnel' : pose,
+        position, distance, lateral, reducedMotion,
         progress: pose === 'drop' ? phaseTime / dropMs : pose === 'exit' ? phaseTime / exitMs : 0,
       });
+      sparks.sync(attempt.collectedIds, visualMs / 1000, reducedMotion);
       showHud({
-        phase, paused: attempt.paused, ready,
+        phase, paused: attempt.paused || returnPaused, ready,
         timeLeftMs: mission.definition.timeLimitMs - attempt.activeTimeMs,
-        lights: attempt.collectedIds.size, hint: hint(ready),
-        action: attempt.paused ? 'Resume' : returned || attempt.outcome ? 'Try again'
-          : phase === 'tunnel-ready' ? 'Begin ride' : 'Pause',
+        lights: attempt.collectedIds.size, total: tunnel.lights.length,
+        collecting: visualMs - pickupMs < 230, hint: hint(ready),
+        action: attempt.paused || returnPaused ? 'Resume' : returned || (attempt.outcome && !returning) ? 'Try again' : 'Pause',
       });
     },
     action,
@@ -219,6 +320,8 @@ export function createGame(
     },
     dispose() {
       controls.dispose();
+      sound.dispose();
+      sparks.dispose();
       travel.dispose();
       world.dispose();
     },

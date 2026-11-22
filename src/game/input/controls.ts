@@ -1,7 +1,11 @@
 export interface ControlCallbacks {
-  phase(): 'explore' | 'inactive';
+  phase(): 'explore' | 'tunnel' | 'inactive';
   point(clientX: number, clientY: number, initial: boolean): void;
   release(inside: boolean): void;
+  steer(clientX: number, initial: boolean): void;
+  beforeInput(): void;
+  beginTunnel(): void;
+  endSteer(): void;
   pause(): void;
   togglePause(): void;
 }
@@ -14,12 +18,14 @@ export interface Controls {
 }
 
 const directions = new Set(['KeyA', 'KeyD', 'KeyW', 'KeyS', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+const lateralKeys = new Set(['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight']);
 
 export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallbacks): Controls {
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
   const heldKeys = new Set<string>();
   let pointerId: number | null = null;
+  let hoverId: number | null = null;
 
   function clearPointer() {
     const id = pointerId;
@@ -29,10 +35,17 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
 
   function reset() {
     heldKeys.clear();
+    rebase();
+  }
+
+  function rebase() {
     clearPointer();
+    hoverId = null;
+    callbacks.endSteer();
   }
 
   function interrupt() {
+    callbacks.beforeInput();
     reset();
     callbacks.pause();
   }
@@ -44,7 +57,8 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
   }
 
   canvas.addEventListener('pointerdown', event => {
-    if (callbacks.phase() !== 'explore' || pointerId !== null || !event.isPrimary || event.button !== 0) return;
+    const phase = callbacks.phase();
+    if (phase === 'inactive' || pointerId !== null || !event.isPrimary || event.button !== 0) return;
     if (!insidePlayfield(event.clientX, event.clientY)) return;
     event.preventDefault();
     canvas.focus({ preventScroll: true });
@@ -54,23 +68,48 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
     } catch {
       // A device can lose contact before capture. Window listeners still observe its release.
     }
-    callbacks.point(event.clientX, event.clientY, true);
+    hoverId = null;
+    if (phase === 'tunnel') callbacks.steer(event.clientX, true);
+    else callbacks.point(event.clientX, event.clientY, true);
   }, listeners);
 
   window.addEventListener('pointermove', event => {
-    if (event.pointerId !== pointerId || callbacks.phase() !== 'explore') return;
-    if (event.pointerType === 'mouse' && (event.buttons & 1) === 0) {
-      clearPointer();
+    const phase = callbacks.phase();
+    if (event.pointerId === pointerId) {
+      if (event.pointerType === 'mouse' && (event.buttons & 1) === 0) {
+        callbacks.beforeInput();
+        rebase();
+        return;
+      }
+      event.preventDefault();
+      if (phase === 'explore') callbacks.point(event.clientX, event.clientY, false);
+      if (phase === 'tunnel') callbacks.steer(event.clientX, false);
       return;
     }
-    event.preventDefault();
-    callbacks.point(event.clientX, event.clientY, false);
+    if (phase !== 'tunnel' || pointerId !== null || event.pointerType !== 'mouse' ||
+        event.buttons !== 0 || !insidePlayfield(event.clientX, event.clientY)) {
+      if (hoverId === event.pointerId) {
+        callbacks.beforeInput();
+        hoverId = null;
+        callbacks.endSteer();
+      }
+      return;
+    }
+    const initial = hoverId !== event.pointerId;
+    hoverId = event.pointerId;
+    callbacks.steer(event.clientX, initial);
   }, listeners);
 
   window.addEventListener('pointerup', event => {
     if (event.pointerId !== pointerId) return;
+    const phase = callbacks.phase();
     clearPointer();
-    if (callbacks.phase() !== 'explore' || event.button !== 0) return;
+    if (phase === 'tunnel') {
+      callbacks.beforeInput();
+      callbacks.endSteer();
+      return;
+    }
+    if (phase !== 'explore' || event.button !== 0) return;
     event.preventDefault();
     const inside = insidePlayfield(event.clientX, event.clientY);
     if (inside) callbacks.point(event.clientX, event.clientY, false);
@@ -99,24 +138,37 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
       if (!event.repeat) callbacks.togglePause();
       return;
     }
-    if (callbacks.phase() !== 'explore' || !gameHasKeyboardFocus()) return;
-    if (directions.has(event.code)) {
+    const phase = callbacks.phase();
+    if (phase === 'inactive' || !gameHasKeyboardFocus()) return;
+    if ((phase === 'tunnel' ? lateralKeys : directions).has(event.code)) {
       event.preventDefault();
-      if (!event.repeat) heldKeys.add(event.code);
-    } else if (event.code === 'Space' || event.code === 'Enter' || event.code === 'NumpadEnter') {
+      if (!event.repeat) {
+        callbacks.beforeInput();
+        if (phase === 'tunnel') callbacks.beginTunnel();
+        heldKeys.add(event.code);
+      }
+    } else if (phase === 'explore' && (event.code === 'Space' || event.code === 'Enter' || event.code === 'NumpadEnter')) {
       event.preventDefault();
       if (!event.repeat) callbacks.release(true);
     }
   }, listeners);
-  window.addEventListener('keyup', event => heldKeys.delete(event.code), listeners);
+  window.addEventListener('keyup', event => {
+    if (heldKeys.has(event.code)) callbacks.beforeInput();
+    heldKeys.delete(event.code);
+  }, listeners);
   document.addEventListener('focusin', () => {
-    if (!gameHasKeyboardFocus()) heldKeys.clear();
+    if (heldKeys.size && !gameHasKeyboardFocus()) {
+      callbacks.beforeInput();
+      heldKeys.clear();
+    }
   }, listeners);
 
   function move() {
-    if (callbacks.phase() !== 'explore') return { x: 0, z: 0 };
+    const phase = callbacks.phase();
+    if (phase === 'inactive') return { x: 0, z: 0 };
     const x = Number(heldKeys.has('KeyD') || heldKeys.has('ArrowRight')) -
       Number(heldKeys.has('KeyA') || heldKeys.has('ArrowLeft'));
+    if (phase === 'tunnel') return { x, z: 0 };
     const z = Number(heldKeys.has('KeyS') || heldKeys.has('ArrowDown')) -
       Number(heldKeys.has('KeyW') || heldKeys.has('ArrowUp'));
     const length = Math.hypot(x, z) || 1;
@@ -127,7 +179,7 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
     move,
     reset,
     // A gesture in the old coordinate system must finish before the next press can release.
-    rebase: clearPointer,
+    rebase,
     dispose() {
       controller.abort();
       reset();
