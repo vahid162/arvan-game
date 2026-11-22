@@ -3,6 +3,7 @@ import {
   Matrix4, Mesh, Quaternion, ShaderMaterial, Vector3,
 } from 'three';
 import type { Anchor, TunnelInstance } from '../core/types';
+import type { TunnelTemplateId } from '../content/generation';
 import type { createExplorationWorld } from './exploration';
 
 interface TravelPose {
@@ -17,19 +18,33 @@ interface TravelPose {
 const vertical = new Vector3(0, 1, 0);
 const smooth = (value: number, start: number, end: number) => MathUtils.smootherstep(value, start, end);
 
+// Cross is a fraction of the anchor chord, run a fraction of the fitted forward span, depth in world units.
+type Knot = readonly [cross: number, run: number, depth: number];
+const profiles: Record<TunnelTemplateId, readonly Knot[]> = {
+  'shallow-bend': [
+    [0, 0, 0], [-0.045, 0.28, -0.05], [-0.24, 0.62, -0.33], [-0.16, 0.88, -0.24],
+    [0.50, 1, -0.08], [1.16, 0.88, 0.10], [1.24, 0.62, 0.21], [1.045, 0.28, 0.06], [1, 0, 0],
+  ],
+  'wide-sweep': [
+    [0, 0, 0], [-0.10, 0.26, -0.05], [-0.49, 0.59, -0.13], [-0.37, 0.86, -0.14],
+    [0.22, 1, 0.03], [1.08, 0.94, 0.09], [1.36, 0.64, 0.14], [1.08, 0.28, 0.06], [1, 0, 0],
+  ],
+  'root-dip': [
+    [0, 0, 0], [-0.045, 0.28, -0.18], [-0.24, 0.62, -1.15], [-0.16, 0.88, -1.60],
+    [0.50, 1, -1.32], [1.16, 0.88, -0.55], [1.24, 0.62, 0.06], [1.045, 0.28, 0.08], [1, 0, 0],
+  ],
+};
+
 function buildPath(tunnel: TunnelInstance) {
+  if (!Object.hasOwn(profiles, tunnel.templateId)) throw new Error('Unknown tunnel template: ' + tunnel.templateId);
+  const knots = profiles[tunnel.templateId as TunnelTemplateId];
   const a = new Vector3(tunnel.entry.x, -6.4, tunnel.entry.z);
   const b = new Vector3(tunnel.exit.x, -6.4, tunnel.exit.z);
   const across = b.clone().sub(a).normalize();
   const forward = new Vector3(-across.z, 0, across.x);
   function mainCurve(span: number) {
-    const point = (cross: number, run: number, depth: number) =>
-      a.clone().lerp(b, cross).addScaledVector(forward, run * span).addScaledVector(vertical, depth);
-    const curve = new CatmullRomCurve3([
-      point(0, 0, 0), point(-0.045, 0.28, -0.05), point(-0.24, 0.62, -0.33),
-      point(-0.16, 0.88, -0.24), point(0.50, 1, -0.08), point(1.16, 0.88, 0.10),
-      point(1.24, 0.62, 0.21), point(1.045, 0.28, 0.06), point(1, 0, 0),
-    ]);
+    const curve = new CatmullRomCurve3(knots.map(([cross, run, depth]) =>
+      a.clone().lerp(b, cross).addScaledVector(forward, run * span).addScaledVector(vertical, depth)));
     curve.arcLengthDivisions = 480;
     return curve;
   }

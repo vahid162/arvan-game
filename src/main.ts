@@ -1,7 +1,8 @@
 import type { Preview } from './game/render/preview';
 import type { GameHud, GameView } from './game/play';
 import type { GeneratedMission } from './game/core/types';
-import { P07_MISSION } from './game/content/fixtures';
+import { FOREST } from './game/content/fixtures';
+import { defaultCampaignSeed, generateMission } from './game/content/generation';
 
 const shell = document.querySelector<HTMLElement>('#shell')!;
 const canvas = document.querySelector<HTMLCanvasElement>('#glade')!;
@@ -11,6 +12,7 @@ const motionLabel = document.querySelector<HTMLElement>('#motion-label')!;
 const play = document.querySelector<HTMLButtonElement>('#play')!;
 const story = document.querySelector<HTMLButtonElement>('#story')!;
 const briefing = document.querySelector<HTMLElement>('#briefing')!;
+const briefTitle = document.querySelector<HTMLElement>('#brief-title')!;
 const briefDetail = document.querySelector<HTMLElement>('#brief-detail')!;
 const missionStart = document.querySelector<HTMLButtonElement>('#mission-start')!;
 const briefBack = document.querySelector<HTMLButtonElement>('#brief-back')!;
@@ -28,6 +30,11 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let preview: Preview | undefined;
 let game: GameView | undefined;
 let cancelled = false;
+let campaignStep = 0;
+let activeMission: GeneratedMission | undefined;
+let offeredMission: GeneratedMission | undefined;
+let storyWon = false;
+const missionIndices = [0, 1, 2] as const;
 
 function showFailure(message: string) {
   shell.dataset.state = 'failed';
@@ -65,6 +72,8 @@ function setText(element: HTMLElement, value: string) {
 }
 
 function showHud(hud: GameHud) {
+  storyWon = hud.storyWon;
+  if (storyWon && activeMission?.definition.id === FOREST.missionIds[campaignStep]) campaignStep++;
   gamePanel.dataset.phase = hud.phase;
   gamePanel.dataset.ready = String(hud.ready);
   if (gamePanel.dataset.paused !== String(hud.paused)) {
@@ -82,7 +91,7 @@ function showHud(hud: GameHud) {
   gameMenu.hidden = !hud.result;
   setText(missionResult, hud.result);
   setText(gameHint, hud.hint);
-  setText(gameAction, hud.action);
+  setText(gameAction, storyWon ? (campaignStep < missionIndices.length ? 'Next mission' : 'Back to clearing') : hud.action);
   const underground = hud.phase.startsWith('tunnel');
   setText(sceneTitle, underground ? 'Under the forest' : 'Forest clearing');
   const playfield = underground ? 'Tunnel playfield' : 'Forest playfield';
@@ -95,7 +104,9 @@ async function startGame(mission?: GeneratedMission) {
   try {
     const { createGame } = await import('./game/play');
     if (!preview) return;
+    activeMission = mission;
     game = createGame(canvas, reducedMotion.matches, showHud, () => preview?.redraw(), { mission });
+    delete gamePanel.dataset.paused;
     gamePanel.hidden = false;
     gameAction.hidden = false;
     play.hidden = true;
@@ -112,20 +123,42 @@ async function startGame(mission?: GeneratedMission) {
   }
 }
 play.onclick = () => void startGame();
-story.onclick = () => {
+function openStoryBriefing() {
+  const index = missionIndices[campaignStep];
+  offeredMission = index === undefined ? undefined : generateMission(index, defaultCampaignSeed(index));
   briefing.hidden = false;
-  setText(briefDetail, 'Collect 25 of 36 lights across three tunnels. You have 90 seconds of active time.');
-  missionStart.focus();
-};
+  missionStart.hidden = !offeredMission;
+  if (offeredMission) {
+    setText(briefTitle, `Mission ${index! + 1} of 3`);
+    setText(briefDetail, `Collect ${offeredMission.definition.targetLight} of 36 lights across three tunnels. You have 90 seconds of active time.`);
+    missionStart.focus();
+  } else {
+    setText(briefTitle, 'Forest missions complete');
+    setText(briefDetail, 'You completed all three missions in this session.');
+    briefBack.focus();
+  }
+}
+story.onclick = openStoryBriefing;
 briefBack.onclick = () => {
   briefing.hidden = true;
   story.focus();
 };
-missionStart.onclick = () => void startGame(P07_MISSION);
-gameAction.onclick = () => game?.action();
-gameMenu.onclick = () => {
+missionStart.onclick = () => {
+  if (offeredMission) void startGame(offeredMission);
+};
+gameAction.onclick = () => {
+  if (!storyWon) {
+    game?.action();
+    return;
+  }
+  showMenu();
+  if (campaignStep < missionIndices.length) openStoryBriefing();
+};
+function showMenu() {
   if (!preview) return;
   game = undefined;
+  activeMission = undefined;
+  storyWon = false;
   gamePanel.hidden = true;
   gameAction.hidden = true;
   gameMenu.hidden = true;
@@ -141,7 +174,8 @@ gameMenu.onclick = () => {
   preview.showIntro();
   setPaused(reducedMotion.matches);
   story.focus();
-};
+}
+gameMenu.onclick = showMenu;
 
 async function start() {
   try {

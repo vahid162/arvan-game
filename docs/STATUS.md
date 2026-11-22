@@ -14,7 +14,8 @@
 | P05 | `COMPLETE` |
 | P06 | `READY_FOR_REVIEW` |
 | P07 | `COMPLETE` |
-| P08–P15 | `NOT_STARTED` |
+| P08 | `COMPLETE` |
+| P09–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -37,6 +38,10 @@ Strict TypeScript and lint passed. `npm run test:unit` passed 23 tests, `npm run
 ## P07 checkpoint
 
 The 25-of-36 mission now plays through three openings with a 90-second active clock. Chromium drove the 8+9+8 win at active second 73, checked that used openings stay shut and verified free retry with the same layout. The reducer and browser checks cover deadline and exhausted-opportunity outcomes. Camera tests verified the added routes in portrait and landscape.
+
+## P08 checkpoint
+
+The campaign advances through targets 22, 25 and 28. Each mission has three seeded tunnels and 90 active seconds. All 3,000 sampled layouts reproduced from their seed and allowed base steering to reach every light. The longest full route in the validation sweep took 29.197 active seconds. Geometry checks covered all nine template and anchor combinations in portrait and landscape. Chromium won missions 1 and 2 and opened mission 3 with its correct target and fresh clock.
 
 ## P02 evidence
 

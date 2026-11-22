@@ -1,11 +1,16 @@
 import { expect, it, onTestFinished } from 'vitest';
 import { Raycaster, Vector3, type PerspectiveCamera } from 'three';
 import { FOREST_MISSIONS, P07_MISSION } from '../../src/game/content/fixtures';
+import { TUNNEL_TEMPLATE_IDS } from '../../src/game/content/generation';
 import { createExplorationWorld } from '../../src/game/render/exploration';
 import { createTunnelView } from '../../src/game/render/tunnel';
 
 const tunnel = FOREST_MISSIONS[0].tunnels[0]!;
 const worldUp = new Vector3(0, 1, 0);
+const variants = P07_MISSION.tunnels.flatMap(instance =>
+  TUNNEL_TEMPLATE_IDS.map(templateId => ({ ...instance, templateId })));
+const viewports = variants.flatMap(instance =>
+  [390 / 844, 900 / 500].map(aspect => ({ instance, aspect })));
 
 function cameraPose(camera: PerspectiveCamera) {
   return { eye: camera.position.clone(), rotation: camera.quaternion.clone(), fov: camera.fov, aspect: camera.aspect };
@@ -38,8 +43,8 @@ function setup(aspect = 1, instance = tunnel) {
   return { world, view, pose, release };
 }
 
-it.each([390 / 844, 900 / 500])('joins the exploration and chase poses without a jump at aspect %f', aspect => {
-  const { world, pose, release } = setup(aspect);
+it.each(viewports)('joins the camera poses for $instance.id, $instance.templateId, aspect $aspect', ({ instance: tunnel, aspect }) => {
+  const { world, pose, release } = setup(aspect, tunnel);
   const explorationCamera = cameraPose(world.camera);
   const start = pose('drop', 0, 0);
   expectSameCamera(start.camera, explorationCamera);
@@ -71,8 +76,8 @@ it.each([390 / 844, 900 / 500])('joins the exploration and chase poses without a
   expect(returned.fly.y).toBeCloseTo(start.fly.y, 6);
 });
 
-it('moves by distance and keeps a continuous, upright frame through the authored tunnel', () => {
-  const { view } = setup();
+it.each(variants)('moves by distance with upright frames for $id, $templateId', tunnel => {
+  const { view } = setup(1, tunnel);
   for (const [distance, anchor] of [[0, tunnel.entry], [tunnel.length, tunnel.exit]] as const) {
     const { center } = view.frameAt(distance);
     expect(center.x).toBeCloseTo(anchor.x, 5);
@@ -99,8 +104,8 @@ it('moves by distance and keeps a continuous, upright frame through the authored
   }
 });
 
-it.each([390 / 844, 900 / 500])('holds a clear sightline on the drop and keeps the emerging firefly in frame at aspect %f', aspect => {
-  const { view, pose } = setup(aspect);
+it.each(viewports)('keeps the firefly in sight through both portals for $instance.id, $instance.templateId, aspect $aspect', ({ instance: tunnel, aspect }) => {
+  const { view, pose } = setup(aspect, tunnel);
   const ray = new Raycaster();
   for (let step = 0; step <= 50; step++) {
     const progress = step / 50;
@@ -119,8 +124,8 @@ it.each([390 / 844, 900 / 500])('holds a clear sightline on the drop and keeps t
   }
 });
 
-it('keeps the chase eye and its near plane inside the bore as the firefly moves sideways', () => {
-  const { view, pose } = setup(16 / 9);
+it.each(viewports)('keeps the eye and near plane in the bore for $instance.id, $instance.templateId, aspect $aspect', ({ instance: tunnel, aspect }) => {
+  const { view, pose } = setup(aspect, tunnel);
   const centers: Vector3[] = [];
   // The camera trails the entry, where the tube has a lead-in.
   for (let d = -4; d <= tunnel.length; d += 0.125) centers.push(view.frameAt(d).center.clone());
@@ -140,23 +145,37 @@ it('keeps the chase eye and its near plane inside the bore as the firefly moves 
   }
 });
 
-it.each([390 / 844, 900 / 500])('keeps both outside lanes visible through all three mission tunnels at aspect %f', aspect => {
+it.each(viewports)('keeps both outside lanes visible for $instance.id, $instance.templateId, aspect $aspect', ({ instance, aspect }) => {
   const ray = new Raycaster();
-  for (const instance of P07_MISSION.tunnels) {
-    const { view, pose } = setup(aspect, instance);
-    view.group.updateWorldMatrix(true, true);
-    for (let step = 0; step <= 48; step++) {
-      const distance = instance.length * step / 48;
-      for (const lateral of [-1.32, 0, 1.32]) {
-        const { fly, camera } = pose('tunnel', 0, distance, lateral);
-        const toFly = fly.clone().sub(camera.eye);
-        ray.near = view.camera.near;
-        ray.far = toFly.length() - 0.095;
-        ray.set(camera.eye, toFly.normalize());
-        expect(ray.intersectObject(view.group), `${instance.id} wall at distance ${distance}, lane ${lateral}`).toHaveLength(0);
-        const screen = fly.project(view.camera);
-        expect(Math.max(Math.abs(screen.x), Math.abs(screen.y), Math.abs(screen.z))).toBeLessThan(1);
-      }
+  const { view, pose } = setup(aspect, instance);
+  view.group.updateWorldMatrix(true, true);
+  for (let step = 0; step <= 48; step++) {
+    const distance = instance.length * step / 48;
+    for (const lateral of [-1.32, 0, 1.32]) {
+      const { fly, camera } = pose('tunnel', 0, distance, lateral);
+      const toFly = fly.clone().sub(camera.eye);
+      ray.near = view.camera.near;
+      ray.far = toFly.length() - 0.095;
+      ray.set(camera.eye, toFly.normalize());
+      expect(ray.intersectObject(view.group), `${instance.id} wall at distance ${distance}, lane ${lateral}`).toHaveLength(0);
+      const screen = fly.project(view.camera);
+      expect(Math.max(Math.abs(screen.x), Math.abs(screen.y), Math.abs(screen.z))).toBeLessThan(1);
     }
   }
+});
+
+it('changes the horizontal sweep and vertical profile for the same pair of surface anchors', () => {
+  const base = setup(1, { ...tunnel, templateId: 'shallow-bend' }).view;
+  const sweep = setup(1, { ...tunnel, templateId: 'wide-sweep' }).view;
+  const dip = setup(1, { ...tunnel, templateId: 'root-dip' }).view;
+  let widestSeparation = 0;
+  let deepestDrop = 0;
+  for (let d = 0; d <= tunnel.length; d += 0.25) {
+    const shallow = base.frameAt(d).center;
+    const wide = sweep.frameAt(d).center;
+    widestSeparation = Math.max(widestSeparation, Math.hypot(shallow.x - wide.x, shallow.z - wide.z));
+    deepestDrop = Math.max(deepestDrop, shallow.y - dip.frameAt(d).center.y);
+  }
+  expect(widestSeparation).toBeGreaterThan(0.65);
+  expect(deepestDrop).toBeGreaterThan(1);
 });

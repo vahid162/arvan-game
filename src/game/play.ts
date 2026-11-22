@@ -25,6 +25,7 @@ export interface GameHud {
   total: number;
   target: number | null;
   result: string;
+  storyWon: boolean;
   collecting: boolean;
   hint: string;
   action: string;
@@ -352,6 +353,7 @@ export function createGame(
         target: demo ? null : mission.definition.targetLight,
         result: demo || returning || !attempt.outcome ? '' :
           attempt.outcome.kind === 'success' ? 'Mission complete' : 'Mission failed',
+        storyWon: !demo && !returning && attempt.outcome?.kind === 'success',
         collecting: visualMs - pickupMs < 230, hint: hint(ready),
         action: attempt.paused || returnPaused ? 'Resume' : returned || (attempt.outcome && !returning) ? 'Try again' : 'Pause',
       });
