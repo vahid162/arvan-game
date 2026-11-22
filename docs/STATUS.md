@@ -7,7 +7,12 @@
 | P00 | `COMPLETE` |
 | P01 | `COMPLETE` |
 | P02 | `BLOCKED` |
-| P03–P15 | `NOT_STARTED` |
+| P03 | `COMPLETE` |
+| P04–P15 | `NOT_STARTED` |
+
+## P03 checkpoint
+
+Implemented deterministic mission state and the active-time clock. Unit tests cover the three target fixtures, the 25-light result at second 73, the exact deadline under different frame schedules, pause, unique collection, exhausted opportunities, and same-seed retry. `npm run test:unit`, strict TypeScript and lint passed. Next in the authorized local range is P04.
 
 ## P02 evidence
 
