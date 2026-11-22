@@ -218,6 +218,7 @@ test('an elixir saved on the winning input survives failed service and a lost We
   await expect(page.locator('#shell')).toHaveAttribute('data-state', 'failed');
   await expect(page.locator('#status')).toContainText(/graphics.*interrupt/i);
   await page.getByRole('link', { name: /reload/i }).click();
+  await expect(page.locator('#shell')).toHaveAttribute('data-state', 'ready', { timeout: 30_000 });
   await expect(page.getByRole('heading', { name: 'Elixir delivered' })).toBeVisible();
   expect(await savedProfile(page)).toBe(win);
   await page.getByRole('button', { name: 'Next mission' }).click();
