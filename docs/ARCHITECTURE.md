@@ -4,9 +4,9 @@
 
 The [P00 inventory](STATUS.md#p00-evidence) found no prototype to migrate. Use the existing [game specification](Light_Hunt_Complete_Game_Scenario_EN.md) as the behavior contract. Start P01 with a small browser shell and a rendered placeholder.
 
-## Toolchain selected for P01
+## P01 toolchain
 
-On 22 November 2026 we checked the Node release index and the npm registry's stable `latest` manifests against the version-specific records below. These are the exact versions to pin at initial setup. Actual installation, transitive resolution and integration testing belong to P01.
+P00 checked these versions against the Node release index and npm package manifests. P01 installed them. Exact dependencies and integrity hashes are in the [npm lockfile](../package-lock.json).
 
 | Component | Selected version | Reason and compatibility evidence |
 | --- | --- | --- |
@@ -17,10 +17,12 @@ On 22 November 2026 we checked the Node release index and the npm registry's sta
 | Vitest | `5.1.1` | Its Node range includes 26.x and its Vite peer range includes 8.x. Use it for deterministic unit checks. [Manifest](https://registry.npmjs.org/vitest/5.1.1) |
 | Playwright Test | `1.65.1` | Declares Node 20 or later and depends on the same Playwright version. Its supported test-host matrix includes Node 26. Use its matching browser build for the smoke test. [Manifest](https://registry.npmjs.org/@playwright/test/1.65.1) · [System requirements](https://playwright.dev/docs/intro#system-requirements) |
 
-P01 will generate the npm lockfile, repeat the install from a clean checkout, and verify strict types, lint, the production build, a unit invariant and an actual rendered browser scene. Test the unsupported-WebGL 2 state and resize behavior as part of the shell. Three.js uses WebGL 2 for this renderer. [P01 acceptance](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p01--create-the-install-free-browser-shell-and-test-foundation) · [Three.js WebGLRenderer](https://threejs.org/docs/pages/WebGLRenderer.html)
+Oxlint 1.94.0 checks source and test code. The test configuration uses Node type declarations 26.6.6. Three.js is the only direct runtime dependency. The player loads its renderer on demand after the browser confirms WebGL 2 support. [Three.js WebGLRenderer](https://threejs.org/docs/pages/WebGLRenderer.html)
+
+The HTML shell presents loading and recovery text before the renderer loads. One canvas holds the orthographic scene. Resizing updates its camera and drawing buffer in place, with a maximum of two device pixels per CSS pixel on each axis. Rendering pauses when the tab is hidden. Reduced motion keeps a static first frame until the viewer resumes motion. The preview uses local geometry and makes no frame-by-frame network requests.
 
 ## Runtime boundaries
 
 - **Browser.** An HTTPS page runs the game on the player's device. Keep deterministic rules and the active clock independent of rendering. Input sends domain commands, Three.js draws snapshots, DOM controls display state, and the save module persists validated progress locally. Introduce these modules as their phases need them. The developer toolchain runs outside the player path.
 - **Delivery.** The design calls for a separately built ArvanCloud Edge handler for HTTP entry and readiness, with versioned assets served through Object Storage and CDN. Movement and collision run in the browser. P02 must verify runtime and bundling requirements, the actual account and allowed origin before recording a provider adapter or deployment procedure.
-- **Evidence.** The lockfile and successful P01 checks will establish what runs together. Physical Android Chrome and iPhone Safari sessions will establish touch and performance on named devices. A hosted probe will establish Edge execution on the authorized target. [Current evidence and next phase](STATUS.md)
+- **Evidence.** The status record identifies the browser build exercised in automation. Physical Android Chrome and iPhone Safari sessions will establish touch and performance on named devices. A hosted probe will establish Edge execution on an authorized target. [Current evidence and next phase](STATUS.md)

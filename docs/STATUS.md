@@ -1,13 +1,12 @@
 # Light Hunt development status
 
-**P00 · COMPLETE** — repository discovery and development handoff, 22 November 2026.
-
-**Next phase** — P01, the browser shell and test foundation, awaits a phase request. Its first demonstration is a rendered placeholder firefly, a readable fallback when WebGL 2 is unavailable, and a browser smoke test from a clean build. [P01 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p01--create-the-install-free-browser-shell-and-test-foundation)
+**P01 · IN_PROGRESS** — the browser shell and test foundation are implemented. Clean-checkout verification and the mobile capture are in progress. [P01 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p01--create-the-install-free-browser-shell-and-test-foundation)
 
 | Phase | State |
 | --- | --- |
 | P00 | `COMPLETE` |
-| P01–P15 | `NOT_STARTED` |
+| P01 | `IN_PROGRESS` |
+| P02–P15 | `NOT_STARTED` |
 
 ## P00 evidence
 
