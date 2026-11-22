@@ -56,7 +56,8 @@ function advance(state: Attempt, { elapsedMs, hits, attemptId }: Advance): Attem
   if (state.phase !== 'explore' && state.phase !== 'tunnel-active') return state;
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return state;
 
-  const { timeLimitMs, targetLight } = state.mission.definition;
+  const { targetLight } = state.mission.definition;
+  const timeLimitMs = state.mode === 'tutorial' ? Infinity : state.mission.definition.timeLimitMs;
   const endMs = Math.min(state.activeTimeMs + elapsedMs, timeLimitMs);
   let collectedIds = state.collectedIds;
   if (state.phase === 'tunnel-active' && hits?.length) {
@@ -95,7 +96,7 @@ function finishTunnel(state: Attempt): Attempt {
       for (const light of tunnel.lights) reachableIds.add(light.id);
     }
   }
-  if (reachableIds.size < state.mission.definition.targetLight) {
+  if (state.mode !== 'tutorial' && reachableIds.size < state.mission.definition.targetLight) {
     return {
       ...state, phase: 'failure', consumedTunnelIds,
       outcome: { kind: 'failure', reason: 'unreachable', atMs: state.activeTimeMs },

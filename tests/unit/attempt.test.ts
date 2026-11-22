@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FOREST_MISSIONS } from '../../src/game/content/fixtures';
+import { FOREST_MISSIONS, TUNNEL_DEMO } from '../../src/game/content/fixtures';
 import { createAttempt, reduceAttempt, type Attempt, type AttemptCommand } from '../../src/game/core/attempt';
 
 const forestTwo = FOREST_MISSIONS[1];
@@ -28,6 +28,16 @@ function visit(state: Attempt, index: number, count: number, elapsedMs = count) 
 }
 
 describe('attempt clock and collection', () => {
+  it('allows unlimited tutorial exploration and a normal exit with missed lights', () => {
+    let attempt = createAttempt(TUNNEL_DEMO, { mode: 'tutorial' });
+    attempt = reduceAttempt(attempt, { type: 'advance', elapsedMs: 900_000 });
+    expect(attempt.phase).toBe('explore');
+    attempt = visit(attempt, 0, 3, 180_000);
+    expect(attempt.phase).toBe('explore');
+    expect(attempt.collectedIds.size).toBe(3);
+    expect(attempt.outcome).toBeNull();
+  });
+
   it('uses each mission target and its 36 unique one-point lights', () => {
     expect(FOREST_MISSIONS.map(mission => mission.definition.targetLight)).toEqual([22, 25, 28]);
     for (const mission of FOREST_MISSIONS) {

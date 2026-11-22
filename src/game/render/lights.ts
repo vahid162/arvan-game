@@ -41,7 +41,7 @@ export function createTunnelLights(travel: ReturnType<typeof createTunnelView>, 
       void main() {
         local = position.xy * 3.20;
         age = pickedAt >= 0.0 ? max(0.0, seconds - pickedAt) : pickedAt;
-        warmth = reduced ? 1.0 : 0.94 + 0.06 * sin(seconds * 2.6 + sparkCenter.z);
+        warmth = reduced ? 1.0 : 0.97 + 0.03 * sin(seconds * 2.6 + sparkCenter.z);
         vec4 view = modelViewMatrix * vec4(sparkCenter, 1.0);
         view.xy += local * sparkRadius;
         gl_Position = projectionMatrix * view;
@@ -55,13 +55,15 @@ export function createTunnelLights(travel: ReturnType<typeof createTunnelView>, 
         vec3 color;
         float alpha;
         if (age < -0.5 && age > -1.5) {
-          float diamond = abs(local.x) + abs(local.y);
+          float diamond = 1.1 * abs(local.x) + 0.86 * abs(local.y);
           float rays = pow(abs(local.x), 0.6) + pow(abs(local.y), 0.6);
           float aa = clamp(fwidth(diamond), 0.025, 0.22);
-          float core = 1.0 - smoothstep(0.61-aa, 0.61+aa, diamond);
+          float core = 1.0 - smoothstep(0.72-aa, 0.72+aa, diamond);
           float star = 1.0 - smoothstep(1.09-aa, 1.09+aa, rays);
           float halo = 0.63 * exp(-0.96*r*r);
-          color = mix(vec3(1.0,0.45,0.035), vec3(1.0,0.95,0.66), core);
+          float facet = smoothstep(-aa, aa, local.y - 0.55 * local.x);
+          vec3 gold = mix(vec3(1.0,0.73,0.23), vec3(1.0,0.98,0.75), facet);
+          color = mix(vec3(1.0,0.45,0.035), gold, core);
           alpha = max(max(star,core),halo) * warmth;
         } else {
           float duration = reduced ? 0.13 : 0.31;

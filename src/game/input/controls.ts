@@ -1,5 +1,6 @@
 export interface ControlCallbacks {
   phase(): 'explore' | 'tunnel' | 'inactive';
+  userGesture(): void;
   point(clientX: number, clientY: number, initial: boolean): void;
   release(inside: boolean): void;
   steer(clientX: number, initial: boolean): void;
@@ -60,6 +61,7 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
     const phase = callbacks.phase();
     if (phase === 'inactive' || pointerId !== null || !event.isPrimary || event.button !== 0) return;
     if (!insidePlayfield(event.clientX, event.clientY)) return;
+    if (event.isTrusted) callbacks.userGesture();
     event.preventDefault();
     canvas.focus({ preventScroll: true });
     pointerId = event.pointerId;
@@ -103,6 +105,8 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
   window.addEventListener('pointerup', event => {
     if (event.pointerId !== pointerId) return;
     const phase = callbacks.phase();
+    // Touch and pen browsers can grant activation on release instead of press.
+    if (phase !== 'inactive' && event.pointerType !== 'mouse' && event.isTrusted) callbacks.userGesture();
     clearPointer();
     if (phase === 'tunnel') {
       callbacks.beforeInput();
@@ -143,13 +147,17 @@ export function bindControls(canvas: HTMLCanvasElement, callbacks: ControlCallba
     if ((phase === 'tunnel' ? lateralKeys : directions).has(event.code)) {
       event.preventDefault();
       if (!event.repeat) {
+        if (event.isTrusted) callbacks.userGesture();
         callbacks.beforeInput();
         if (phase === 'tunnel') callbacks.beginTunnel();
         heldKeys.add(event.code);
       }
     } else if (phase === 'explore' && (event.code === 'Space' || event.code === 'Enter' || event.code === 'NumpadEnter')) {
       event.preventDefault();
-      if (!event.repeat) callbacks.release(true);
+      if (!event.repeat) {
+        if (event.isTrusted) callbacks.userGesture();
+        callbacks.release(true);
+      }
     }
   }, listeners);
   window.addEventListener('keyup', event => {

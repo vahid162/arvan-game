@@ -5,6 +5,7 @@
   background: #101916;
   --hairline: #68796b69;
   --gold: #f7ce77;
+  --muted: #bacabc;
 }
 
 * { box-sizing: border-box; }
@@ -27,6 +28,7 @@ body { margin: 0; }
 .masthead { min-height: clamp(4.75rem, 11vh, 6.5rem); }
 h1, h2 { margin: 0; font: 400 1em Baskervville, Georgia, serif; }
 h1 { display: flex; align-items: center; gap: .7rem; font-size: clamp(1.7rem, 3vw, 2.4rem); letter-spacing: -.05em; }
+[lang="fa"] h1, [lang="fa"] h2 { font-family: system-ui, sans-serif; letter-spacing: normal; }
 .brand-spark {
   width: 1.15em;
   height: 1.15em;
@@ -34,8 +36,6 @@ h1 { display: flex; align-items: center; gap: .7rem; font-size: clamp(1.7rem, 3v
   background: var(--gold);
   clip-path: polygon(50% 0%, 58% 36%, 81% 18%, 66% 43%, 100% 50%, 64% 57%, 79% 81%, 57% 64%, 50% 100%, 43% 64%, 19% 83%, 35% 57%, 0% 50%, 35% 43%, 20% 19%, 43% 36%);
 }
-.preview-label { color: #b9c4b6; font-size: .78rem; letter-spacing: .06em; }
-
 figure { margin: 0; border-bottom: 1px solid var(--hairline); }
 #viewport {
   position: relative;
@@ -72,7 +72,7 @@ figure { margin: 0; border-bottom: 1px solid var(--hairline); }
 figcaption { min-height: 5.5rem; padding-block: .65rem; }
 h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
 .scene-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
-.scene-controls button {
+.scene-controls button, .game-card button, #profile-memory {
   display: inline-flex;
   flex-shrink: 0;
   white-space: nowrap;
@@ -83,19 +83,19 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   padding: .65rem 1rem;
   border: 1px solid var(--hairline);
   border-radius: 99rem;
-  background: transparent;
+  background: #192720;
   color: #e1e6d9;
   cursor: pointer;
   font: inherit;
   font-size: .82rem;
 }
-.scene-controls button:hover { background: #23312a; }
+.scene-controls button:hover, .game-card button:hover, #profile-memory:hover { background: #263a2e; }
 .scene-controls button:disabled, .game-card button:disabled { opacity: .65; cursor: default; }
-#play { background: #f0cb7d; border-color: #f0cb7d; color: #172019; font-weight: 650; }
-#play:hover { background: #ffdd99; }
+.scene-controls .primary, .game-card .primary { background: #f0cb7d; border-color: #f0cb7d; color: #172019; font-weight: 700; }
+.scene-controls .primary:hover, .game-card .primary:hover { background: #ffdd99; }
 #game { position: absolute; inset: 0; pointer-events: none; }
 [data-playing="true"] #glade { touch-action: none; }
-.game-hud, #game-hint {
+.game-hud, .play-feedback {
   position: absolute;
   background: #101916ed;
   color: #f1efe0;
@@ -115,77 +115,113 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   font-variant-numeric: tabular-nums;
 }
 #game-score[data-collecting="true"] { color: var(--gold); }
-#elixir {
-  position: absolute;
-  inset: auto 0 5rem;
-  margin-inline: auto;
-  width: 1.6rem;
-  height: 1.55rem;
-  border-radius: 45%;
-  border: 2px solid #fde2a6;
-  background: #e29832;
-  box-shadow: 0 0 1.2rem #f7ce7780;
-}
-#elixir::before {
+#game-score[data-collecting="true"]::before {
   content: "";
-  position: absolute;
-  inset: -.53rem .35rem auto;
-  height: .55rem;
-  border-radius: .1rem;
-  background: #fde2a6;
+  display: inline-block;
+  width: .45rem;
+  height: .45rem;
+  margin-inline-end: .3rem;
+  background: currentColor;
+  transform: rotate(45deg);
 }
 #mission-result {
-  position: absolute;
-  inset: 36% 1rem auto;
-  margin: 0 auto;
-  width: fit-content;
-  padding: .65rem 1rem;
-  background: #101916ed;
-  border: 1px solid #68796ba3;
-  border-radius: .55rem;
-  text-align: center;
+  margin-block-end: .25rem;
+  font-size: clamp(1.3rem, 4vw, 2rem);
 }
 .game-card {
   position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  width: min(90%, 24rem);
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  width: min(90%, 26rem);
   max-height: calc(100% - 1rem);
   overflow: auto;
-  padding: 1.35rem;
-  background: #101916f5;
-  border: 1px solid #68796ba3;
-  border-radius: .75rem;
+  overscroll-behavior: contain;
+  padding: clamp(.8rem, 4vw, 1.4rem);
+  background: linear-gradient(150deg, #24382e, #141f1aeF 70%);
+  border: 1px solid #718a73;
+  border-radius: 1rem;
+  box-shadow: 0 .55rem 2rem #07110db0;
 }
+.game-card h2 { font-size: clamp(1.6rem, 5vw, 2.45rem); }
+.game-card p { line-height: 1.45; }
 .game-card button {
-  min-height: 3rem;
-  margin: .2rem .3rem .2rem 0;
+  margin-block: .2rem;
+  margin-inline-end: .3rem;
   padding: .5rem .8rem;
 }
 .shop-offer {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  border-block-start: 1px solid var(--hairline);
+  padding-block: .5rem;
+}
+.shop-offer p { margin: 0; font-size: .85rem; }
+.shop-offer button { margin: 0; }
+.upgrade-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid #e5bb74;
+  background: radial-gradient(circle, #ffdd99 0 15%, #94653a 19% 38%, #24382e 45%);
+}
+.collection-radius {
+  border-radius: .4rem;
+  transform: rotate(45deg) scale(.73);
+  background: radial-gradient(circle, #ffe5a6 0 21%, #b0815a 24% 45%, #24382e 52%);
+}
+.crystal-balance::before, .forest-progress::before {
+  content: "";
+  display: inline-block;
+  vertical-align: .07em;
+  width: .75rem;
+  height: .9rem;
+  margin-inline-end: .48rem;
+  background: linear-gradient(110deg, #ffe9ad 47%, #d49b55 49%);
+  clip-path: polygon(50% 0, 100% 32%, 82% 80%, 50% 100%, 18% 80%, 0 32%);
+}
+.setting-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--hairline);
-  padding-block: .4rem;
+  gap: 1rem;
+  min-height: 3rem;
+  border-block-end: 1px solid var(--hairline);
 }
-.shop-offer p { margin: .35rem .5rem .35rem 0; font-size: .86rem; line-height: 1.4; }
-#shop-balance, #shop-feedback { color: var(--gold); }
-#forest-progress, #profile-notice { margin-block: .7rem; color: #c8d7c6; }
-#profile-notice { color: #f7ce77; }
-#profile-memory { min-height: 3rem; padding: .5rem .8rem; }
-#game-hint {
+.setting-row :is(input, select) { accent-color: var(--gold); }
+.setting-row input { width: 1.35rem; height: 1.35rem; }
+.setting-row select {
+  min-height: 2.5rem;
+  padding-inline: .5rem;
+  border: 1px solid #718a73;
+  border-radius: .35rem;
+  background: #17241d;
+  color: inherit;
+  font: inherit;
+}
+.setting-row a { color: var(--gold); padding-block: .65rem; }
+#system-motion { color: var(--muted); font-size: .85rem; margin-block: .4rem; }
+#shop-balance, #shop-feedback, #game-mode { color: var(--gold); }
+#forest-progress, #profile-notice, #local-save { margin-block: .7rem; color: var(--muted); }
+#local-save { font-size: .85rem; }
+#profile-notice { color: var(--gold); }
+.play-feedback {
   inset: auto .8rem .8rem;
-  max-width: 27rem;
-  margin: 0 auto;
-  padding: .65rem .8rem;
-  border-radius: .55rem;
-  font-size: .85rem;
-  line-height: 1.4;
+  max-width: 28rem;
+  margin-inline: auto;
+  padding: .6rem .8rem;
+  border-radius: .65rem;
   text-align: center;
 }
-[data-paused="true"] #game-hint { bottom: 42%; }
+#game-hint {
+  margin: 0;
+  font-size: .88rem;
+  line-height: 1.4;
+}
+[data-paused="true"] .play-feedback { inset-block-end: 38%; }
+[data-result="delivered"] .play-feedback { border-color: #c8a561; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .motion-icon { width: .65rem; height: .75rem; border-inline: 3px solid var(--gold); }
 [data-paused="true"] .motion-icon {
@@ -197,8 +233,11 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
 
 @media (max-width: 35rem) {
   #viewport { border-radius: 1rem .25rem 1rem .25rem; }
-  figcaption { gap: .6rem; }
+  figcaption { flex-wrap: wrap; gap: .5rem; }
+  .scene-controls { justify-content: flex-start; }
   .scene-controls button { padding-inline: .8rem; }
+  .shop-offer { grid-template-columns: 2rem 1fr; }
+  .shop-offer button { grid-column: 2; justify-self: start; }
 }
 @media (max-height: 31rem) and (orientation: landscape) {
   .masthead { min-height: 3.25rem; }

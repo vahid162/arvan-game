@@ -19,7 +19,7 @@ Open the local URL printed by Vite. Select **Play story** and **Start mission**.
 4. Use **Pause**, Escape, or **Try again** as needed. A retry keeps the same layout. After each win, continue to the next mission to restore more of the forest.
 5. After the third win, return to the clearing. Spend your 12 crystals on a wider exploration light (8) or a wider collection radius (10). **Practice** replays any completed mission with your equipment and saves a separate best score.
 
-**Start exploring** is a separate one-tunnel run for learning controls. The game needs WebGL 2 and honors the browser’s reduced-motion preference. Reopen the same URL in the same browser profile to continue your saved forest.
+**Start exploring · Tutorial** teaches the controls in an untimed tunnel. Open **Settings** to change sound, reduced motion, or mouse and touch steering sensitivity. English is the default, and the **فارسی** link opens the Persian right-to-left interface. The game needs WebGL 2. Reopen the same address in the same browser profile to continue your saved forest.
 
 ## Build and verify
 

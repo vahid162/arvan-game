@@ -1,6 +1,8 @@
 # Light Hunt development status
 
-**P11-A · READY_FOR_REVIEW** — difficulty tuning on `feat/p11-a-difficulty-balance` awaits owner playtest. The approved P10 build at `4fa8d16` is the comparison baseline.
+**P11-B · READY_FOR_REVIEW** — the tutorial, forest presentation, interface, sound and settings are ready for owner review. English is the default and Settings links to the Persian right-to-left interface.
+
+**P11-A · COMPLETE** — the owner approved the difficulty at `1d56887`. The P10 build at `4fa8d16` was the comparison baseline.
 
 **P10 · READY_FOR_REVIEW** — the full forest campaign, upgrade shop and reward-free practice are playable locally on `feat/p07-p10-gameplay-loop`. [Play the game](../README.md#developer-setup)
 
@@ -21,8 +23,9 @@
 | P08 | `COMPLETE` |
 | P09 | `COMPLETE` |
 | P10 | `READY_FOR_REVIEW` |
-| P11-A difficulty adjustment | `READY_FOR_REVIEW` |
-| Remaining P11 presentation and P12–P15 | `NOT_STARTED` |
+| P11-A difficulty adjustment | `COMPLETE` |
+| P11-B presentation | `READY_FOR_REVIEW` |
+| P12–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -67,6 +70,12 @@ For new story assignments, entrances appear at 1.58 ground units instead of 1.86
 The same-seed comparison on mission 3 found 14 lights within reach of a centered flight in P10 and 12 after tuning. A model using base equipment, a 250 ms steering delay and a 0.10-unit aiming offset reached all 36 on each of the three campaign seeds. The existing validator checked 3,000 tuned seeds, with the slowest direct route at 29.197 active seconds. Archived P10 saves verified unfinished layouts, progress, upgrade ownership, both practice records and reward claims. These measurements support owner difficulty review. Perceived difficulty and physical-device comfort still need player feedback. The live P02 probe remains open.
 
 Strict TypeScript, lint and 43 focused unit cases passed. Seven Chromium cases passed across focused runs. They checked the visible entrance and release boundary, same-layout retry and deadline, three campaign wins with reload and one-time reward, and upgraded practice.
+
+## P11-B presentation checkpoint
+
+The approved procedural firefly, forest, tunnel walls and owl remain the visual reference. New presentation assets are project-authored meshes, CSS icons and synthesized Web Audio cues. The firefly carries a visible elixir, the restored area brightens over 1.4 seconds and the guardian celebrates beside a steady final torch. Reduced motion displays each finished restoration immediately. Sound, reduced motion and pointer sensitivity save in the existing profile. The untimed tutorial uses the existing controls and leaves story progress intact.
+
+The production build, strict TypeScript, lint and 37 focused unit cases passed. All 31 distinct Chromium cases passed across focused runs. They covered an eight-minute tutorial wait followed by keyboard completion, muted pickups and audio activation, manual pause across device preference changes, Persian landscape and narrow portrait layouts, and the three campaign wins with reload and reward checks. Chromium pixel samples verified gradual restoration and an immediate settled view with reduced motion. Physical-device steering, motion comfort and listening checks remain open alongside the P02 live ArvanCloud probe.
 
 ## P02 evidence
 

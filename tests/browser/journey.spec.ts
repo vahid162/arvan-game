@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { FOREST_MISSIONS } from '../../src/game/content/fixtures';
+import { PROFILE_KEY } from '../../src/game/profile';
 import { frameExplorationCamera } from '../../src/game/render/exploration';
 
 const tunnel = FOREST_MISSIONS[0].tunnels[0]!;
@@ -57,6 +58,54 @@ async function score(page: Page) {
   expect(text).toMatch(/^\d+\s*\/\s*12 lights$/i);
   return Number(text.split('/')[0]);
 }
+
+test('the keyboard tutorial can be completed after a long wait without changing a saved story', async ({ page }) => {
+  test.setTimeout(75_000);
+  await freezeClock(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Play story', exact: true }).click();
+  await page.getByRole('button', { name: 'Start mission', exact: true }).click();
+  await phase(page, 'explore');
+  await page.clock.fastForward(90_000);
+  await expect(page.locator('#mission-result')).toHaveText('Mission failed');
+  await page.locator('#game-menu').click();
+  const savedStory = () => page.evaluate(key => localStorage.getItem(key), PROFILE_KEY);
+  const before = await savedStory();
+  expect(before).not.toBeNull();
+
+  await page.getByRole('button', { name: 'Start exploring' }).click();
+  await phase(page, 'explore');
+  await expect(page.locator('#game-clock')).toBeHidden();
+  await page.clock.fastForward(300_000);
+  await phase(page, 'explore');
+  await page.keyboard.down('ArrowRight');
+  await page.clock.fastForward(1036);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('ArrowUp');
+  await page.clock.fastForward(982);
+  await page.keyboard.up('ArrowUp');
+  await expect(page.locator('#game')).toHaveAttribute('data-ready', 'true');
+  await page.keyboard.press('Space');
+  await phase(page, 'drop');
+  await page.clock.fastForward(dropMs);
+  await phase(page, 'tunnel-ready');
+  await page.clock.fastForward(180_000);
+  await phase(page, 'tunnel-ready');
+  expect(await score(page)).toBe(0);
+
+  await beginWithKeyboard(page);
+  await page.clock.fastForward(900);
+  await page.keyboard.down('ArrowLeft');
+  await page.clock.fastForward(240);
+  await page.keyboard.up('ArrowLeft');
+  await page.clock.fastForward(2000);
+  expect(await score(page)).toBeGreaterThanOrEqual(3);
+  await page.clock.fastForward(travelMs + exitMs);
+  await expect(page.locator('#mission-result')).toHaveText('Tutorial complete');
+  await expect(page.locator('#game-hint')).toContainText(/target.*90 active seconds/i);
+  await expect(page.locator('#game-clock')).toBeHidden();
+  expect(await savedStory()).toBe(before);
+});
 
 test('camera entry, ready and exit freeze mission time; paused and repeated travel use one clock', async ({ page }) => {
   test.setTimeout(60_000);

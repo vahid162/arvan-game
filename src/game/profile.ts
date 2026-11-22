@@ -12,6 +12,7 @@ export interface ProfileStore {
   readonly profile: Profile;
   readonly status: ProfileStatus;
   useMemory(): void;
+  updateSettings(changes: Partial<Profile['settings']>): boolean;
   assignMission(index: MissionIndex): GeneratedMission | null;
   completeMission(mission: GeneratedMission, mode?: AttemptMode): boolean;
   finishPresentation(missionId: string): void;
@@ -155,6 +156,23 @@ export async function openProfile(): Promise<ProfileStore> {
     get status() { return status; },
     useMemory() {
       if (!closed && (status === 'unavailable' || status === 'corrupt' || status === 'future')) status = 'memory';
+    },
+    updateSettings(changes) {
+      if (!writable() || !record(changes)) return false;
+      const previous = profile.settings;
+      for (const [key, value] of Object.entries(changes)) {
+        if (key === 'sound' || key === 'reducedMotion') {
+          if (typeof value !== 'boolean') return false;
+        } else if (key === 'sensitivity') {
+          // Older v1 profiles accepted any positive finite sensitivity.
+          if (value !== previous.sensitivity && value !== 0.75 && value !== 1 && value !== 1.25) return false;
+        } else return false;
+      }
+      const settings = { ...previous, ...changes };
+      if (settings.sound !== previous.sound || settings.reducedMotion !== previous.reducedMotion || settings.sensitivity !== previous.sensitivity) {
+        commit({ ...profile, settings });
+      }
+      return true;
     },
     assignMission(index) {
       const id = FOREST.missionIds[index];

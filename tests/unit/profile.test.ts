@@ -340,3 +340,40 @@ it('resumes an unfinished P10 layout exactly and assigns current content only wh
   expect(reloaded.profile.assignedMissions['forest-1']).toEqual(firstReceipt);
   reloaded.close();
 });
+
+it('saves settings independently of story and practice data, and retains an older sensitivity until it is changed', async () => {
+  const raw = JSON.stringify({ ...p10Profile, settings: { ...p10Profile.settings, sensitivity: 1.15 } });
+  const host = browser(raw);
+  const store = await openProfile();
+  expect(store.status).toBe('durable');
+  expect(store.updateSettings({ sound: false, reducedMotion: true })).toBe(true);
+  expect(store.updateSettings({ ...store.profile.settings })).toBe(true);
+  expect(host.storage.setItem).toHaveBeenCalledTimes(1);
+  const reloaded = await host.reopen(store);
+  expect(reloaded.profile).toEqual({ ...p10Profile, settings: { sound: false, reducedMotion: true, sensitivity: 1.15 } });
+  for (const sensitivity of [0.75, 1, 1.25]) expect(reloaded.updateSettings({ sensitivity })).toBe(true);
+  expect(JSON.parse(host.raw()!)).toEqual({ ...p10Profile, settings: { sound: false, reducedMotion: true, sensitivity: 1.25 } });
+  reloaded.close();
+});
+
+it('rejects invalid or competing settings edits atomically and surfaces a write failure as memory-only', async () => {
+  const raw = JSON.stringify(p10Profile);
+  const host = browser(raw);
+  const store = await openProfile();
+  const busy = await openProfile();
+  expect(busy.updateSettings({ sound: false })).toBe(false);
+  expect(store.updateSettings({ sound: false, sensitivity: 1.1 })).toBe(false);
+  expect(store.updateSettings({ sound: false, sensitivity: NaN })).toBe(false);
+  expect(store.updateSettings({ sound: 0 } as unknown as { sound: boolean })).toBe(false);
+  expect(store.updateSettings({ reducedMotion: true, unexpected: 'value' } as { reducedMotion: boolean })).toBe(false);
+  expect(store.profile.settings).toEqual(p10Profile.settings);
+  expect(host.storage.setItem).not.toHaveBeenCalled();
+  host.storage.setItem.mockImplementation(() => { throw new Error('quota'); });
+  expect(store.updateSettings({ sound: false })).toBe(true);
+  expect(store.status).toBe('memory');
+  expect(store.profile.settings).toEqual({ ...p10Profile.settings, sound: false });
+  expect(host.raw()).toBe(raw);
+  store.close();
+  expect(store.updateSettings({ sound: true })).toBe(false);
+  busy.close();
+});

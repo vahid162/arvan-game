@@ -1,7 +1,7 @@
 import {
   BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight,
   DodecahedronGeometry, DoubleSide, Float32BufferAttribute, FogExp2, Group, HemisphereLight,
-  InstancedMesh, Line, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D,
+  InstancedMesh, LatheGeometry, Line, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D,
   PerspectiveCamera, Plane, PlaneGeometry, Raycaster, RingGeometry, Scene, ShaderMaterial, SphereGeometry,
   Vector2, Vector3,
 } from 'three';
@@ -25,6 +25,7 @@ interface ExplorationFrame {
   used?: boolean;
   readyId?: string | null;
   consumedIds?: ReadonlySet<string>;
+  carryingElixir?: boolean;
   elapsedSeconds: number;
   reducedMotion: boolean;
 }
@@ -97,10 +98,12 @@ function makeForest(bounds: Bounds) {
   forest.add(trunk, needles, stones);
   const shaded = needles.instanceColor!.array.slice();
   const sunlit = [new Color(0x43794c), new Color(0x629650), new Color(0x91b466)];
-  function restoreFoliage(front: number) {
+  function restoreFoliage(fronts: Vector3) {
     for (let i = 0; i < needles.count; i++) {
       const z = needles.instanceMatrix.array[i * 16 + 14]!;
-      const restored = MathUtils.smoothstep(z, front, front + 0.65);
+      const before = MathUtils.smoothstep(z, fronts.x, fronts.x + 0.65);
+      const after = MathUtils.smoothstep(z, fronts.y, fronts.y + 0.65);
+      const restored = MathUtils.lerp(before, after, fronts.z);
       tint.fromArray(shaded, i * 3).lerp(sunlit[i % 3]!, restored);
       needles.setColorAt(i, tint);
     }
@@ -129,6 +132,13 @@ function makeGuardian() {
   stump.position.y = 0.13;
   group.add(stump);
   oval(group, feathers, 0, 0.56, 0, 0.38, 0.39, 0.30);
+  const wings = [-1, 1].map(side => {
+    const shoulder = new Group();
+    shoulder.position.set(side * 0.29, 0.66, 0.05);
+    group.add(shoulder);
+    oval(shoulder, feathers, 0, -0.12, 0, 0.11, 0.23, 0.19);
+    return { shoulder, side };
+  });
   const face = new Group();
   face.position.set(0, 0.88, 0.10);
   face.rotation.x = -0.60;
@@ -164,13 +174,30 @@ function makeGuardian() {
   flame.add(tip);
   oval(flame, new MeshBasicMaterial({ color: 0xfff5b6 }), 0, 0.15, 0.08, 0.076, 0.14, 0.075);
   const sizes = [0.23, 0.55, 0.82, 1.18];
-  function update(level: number, seconds: number) {
-    const size = sizes[level]!;
+  function update(level: number, seconds: number, salute = 0) {
+    const size = MathUtils.lerp(sizes[Math.floor(level)]!, sizes[Math.ceil(level)]!, level % 1);
     const flicker = level === 3 ? 1 : 1 + 0.05 * Math.sin(seconds * 3.5);
     flame.scale.set(size, size * flicker, size);
+    for (const { shoulder, side } of wings) shoulder.rotation.z = side * (0.24 + 1.35 * salute);
+    face.rotation.x = -0.60 + 0.14 * salute;
   }
   const torchAt = new Vector2(group.position.x + flame.position.x, group.position.z + flame.position.z);
   return { group, torchAt, update };
+}
+
+function makeElixir() {
+  const bottle = new Group();
+  bottle.position.set(0.01, -0.23, 0.17);
+  const profile = [[0, -0.42], [0.13, -0.38], [0.16, -0.26], [0.14, -0.18],
+    [0.065, -0.12], [0.065, -0.065], [0.085, -0.065], [0.085, -0.035], [0, -0.035]] as const;
+  const flask = new Mesh(new LatheGeometry(profile.map(([r, y]) => new Vector2(r, y)), 10),
+    new MeshStandardMaterial({ color: 0x77dfca, emissive: 0x174e49, roughness: 0.32, flatShading: true }));
+  const stopper = new Mesh(new CylinderGeometry(0.063, 0.061, 0.072, 8),
+    new MeshBasicMaterial({ color: 0xd9ba78 }));
+  stopper.position.y = -0.025;
+  bottle.add(flask, stopper);
+  bottle.visible = false;
+  return bottle;
 }
 
 function makeInwardCues(radius: number) {
@@ -220,6 +247,9 @@ function makeEntrance(anchor: Entrance, id?: string) {
 }
 
 const baseLightRadius = 1.86;
+// Positive Z is south. The northern holes stay dark until the third delivery.
+const restorationFronts = [200, 1.1, -0.75, -200];
+const restorationSeconds = 1.4;
 
 export function createExplorationWorld({
   entry, entries, bounds, story = false, lightRadiusScale = 1, entranceDiscoveryRadius = baseLightRadius,
@@ -227,6 +257,8 @@ export function createExplorationWorld({
   const scene = new Scene();
   const sky = new Color(0x10292e);
   const mist = new FogExp2(0x173737, 0.038);
+  const nightSky = sky.clone(), restoredSky = new Color(0x91ad91);
+  const nightMist = mist.color.clone(), restoredMist = new Color(0x9cb69a);
   scene.background = sky;
   scene.fog = mist;
   const camera = new PerspectiveCamera(46, 1, 0.035, 160);
@@ -242,11 +274,11 @@ export function createExplorationWorld({
   const discoveryRadius = entranceDiscoveryRadius * lightRadiusScale;
   const fullRevealRadius = 0.75 * lightRadiusScale;
   const aperture = new Vector3();
-  const restorationFront = { value: 200 };
+  const fronts = new Vector3(restorationFronts[0], restorationFronts[0], 0);
   const torchLight = { value: 0 };
   const ground = new Mesh(new PlaneGeometry(120, 120), new ShaderMaterial({
     uniforms: {
-      lightAt: { value: lightAt }, poolRadii: { value: poolRadii }, aperture: { value: aperture }, restorationFront,
+      lightAt: { value: lightAt }, poolRadii: { value: poolRadii }, aperture: { value: aperture }, fronts: { value: fronts },
       torchAt: { value: guardian?.torchAt ?? new Vector2() }, torchLight,
     },
     vertexShader: `varying vec2 groundPos;
@@ -259,7 +291,7 @@ export function createExplorationWorld({
       uniform vec2 lightAt;
       uniform vec2 poolRadii;
       uniform vec3 aperture;
-      uniform float restorationFront;
+      uniform vec3 fronts;
       uniform vec2 torchAt;
       uniform float torchLight;
       void main() {
@@ -269,7 +301,8 @@ export function createExplorationWorld({
         float broad = sin(p.x * 0.89 + p.y * 0.71 + sin(p.y * 0.67));
         vec3 ground = mix(vec3(0.009, 0.034, 0.037), vec3(0.027, 0.063, 0.051), 0.5 + 0.5 * broad);
         ground += vec3(0.002, 0.004, 0.002) * grain;
-        float meadow = smoothstep(restorationFront, restorationFront + 0.65, p.y + 0.09 * sin(2.1*p.x));
+        float z = p.y + 0.09 * sin(2.1*p.x);
+        float meadow = mix(smoothstep(fronts.x, fronts.x + 0.65, z), smoothstep(fronts.y, fronts.y + 0.65, z), fronts.z);
         vec3 moss = mix(vec3(0.073,0.155,0.061), vec3(0.22,0.31,0.101), 0.5 + 0.5 * broad);
         ground = mix(ground, moss + vec3(0.012,0.017,0.005)*grain, meadow);
         float torchDistance = distance(p, torchAt);
@@ -290,6 +323,8 @@ export function createExplorationWorld({
   for (const entrance of entrances) scene.add(entrance.group);
 
   const { fly, wings } = makeFirefly();
+  const elixir = story ? makeElixir() : null;
+  if (elixir) fly.add(elixir);
   fly.scale.setScalar(0.56);
   const marker = new Mesh(new RingGeometry(0.074, 0.108, 24), new MeshBasicMaterial({ color: 0xffdb76 }));
   marker.rotation.x = -Math.PI / 2;
@@ -299,18 +334,31 @@ export function createExplorationWorld({
   const ndc = new Vector2();
   const hit = new Vector3();
   let restoration = 0;
+  let transition: { from: number; to: number; start: number } | null = null;
+
+  function displayRestoration(level: number) {
+    if (level === restoration) return;
+    restoration = level;
+    fronts.set(restorationFronts[Math.floor(level)]!, restorationFronts[Math.ceil(level)]!, level % 1);
+    restoreFoliage(fronts);
+    torchLight.value = guardian ? level / 3 : 0;
+    const dawn = Math.max(0, level - 2);
+    sky.lerpColors(nightSky, restoredSky, dawn);
+    mist.color.lerpColors(nightMist, restoredMist, dawn);
+  }
 
   function setRestoration(level: number) {
-    const next = MathUtils.clamp(Math.trunc(level), 0, 3);
-    if (!Number.isFinite(level) || next === restoration) return;
-    restoration = next;
-    // Positive Z is south. Stage two still leaves the northernmost mission area in darkness.
-    restorationFront.value = [200, 1.1, -0.75, -200][next]!;
-    restoreFoliage(restorationFront.value);
-    torchLight.value = guardian ? next / 3 : 0;
-    sky.setHex(next === 3 ? 0x91ad91 : 0x10292e);
-    mist.color.setHex(next === 3 ? 0x9cb69a : 0x173737);
+    if (!Number.isFinite(level)) return;
+    transition = null;
+    displayRestoration(MathUtils.clamp(Math.trunc(level), 0, 3));
     guardian?.update(restoration, 0);
+  }
+
+  function transitionRestoration(level: number, elapsedSeconds: number) {
+    if (!Number.isFinite(level)) return;
+    const next = MathUtils.clamp(Math.trunc(level), 0, 3);
+    if (next <= restoration || !Number.isFinite(elapsedSeconds)) setRestoration(next);
+    else if (transition?.to !== next) transition = { from: restoration, to: next, start: elapsedSeconds };
   }
 
   function pickGround(ndcX: number, ndcY: number): Anchor | null {
@@ -319,9 +367,17 @@ export function createExplorationWorld({
     return { x: hit.x, z: hit.z };
   }
 
-  function update({ position, ready, used, readyId, consumedIds, elapsedSeconds, reducedMotion }: ExplorationFrame) {
+  function update({ position, ready, used, readyId, consumedIds, carryingElixir = false, elapsedSeconds, reducedMotion }: ExplorationFrame) {
     const t = reducedMotion ? 0 : elapsedSeconds;
-    guardian?.update(restoration, t);
+    let salute = 0;
+    if (transition) {
+      const progress = reducedMotion ? 1 : MathUtils.smoothstep(elapsedSeconds, transition.start, transition.start + restorationSeconds);
+      displayRestoration(MathUtils.lerp(transition.from, transition.to, progress));
+      if (progress === 1) transition = null;
+      else if (transition.to === 3) salute = Math.sin(Math.PI * progress) ** 2;
+    }
+    guardian?.update(restoration, t, salute);
+    if (elixir) elixir.visible = carryingElixir;
     lightAt.set(position.x, position.z);
     fly.position.set(position.x, 0.57 + 0.036 * Math.sin(t * 2.4), position.z);
     fly.quaternion.copy(camera.quaternion);
@@ -373,5 +429,9 @@ export function createExplorationWorld({
 
   resize(1);
   guardian?.update(restoration, 0);
-  return { scene, camera, firefly: fly, apertureRadius: entry.radius, setRestoration, setAperture, resize, pickGround, update, dispose };
+  return {
+    scene, camera, firefly: fly, apertureRadius: entry.radius, setRestoration, transitionRestoration,
+    get restoring() { return transition !== null; },
+    setAperture, resize, pickGround, update, dispose,
+  };
 }

@@ -47,7 +47,7 @@ export interface GeneratedMission {
   readonly tunnels: readonly TunnelInstance[];
 }
 
-export type AttemptMode = 'story' | 'practice';
+export type AttemptMode = 'story' | 'practice' | 'tutorial';
 export type UpgradeId = 'exploration-radius' | 'collection-radius';
 export type Loadout = Readonly<Partial<Record<UpgradeId, 1>>>;
 
