@@ -8,11 +8,16 @@
 | P01 | `COMPLETE` |
 | P02 | `BLOCKED` |
 | P03 | `COMPLETE` |
-| P04–P15 | `NOT_STARTED` |
+| P04 | `COMPLETE` |
+| P05–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
 Implemented deterministic mission state and the active-time clock. Unit tests cover the three target fixtures, the 25-light result at second 73, the exact deadline under different frame schedules, pause, unique collection, exhausted opportunities, and same-seed retry. `npm run test:unit`, strict TypeScript and lint passed. Next in the authorized local range is P04.
+
+## P04 checkpoint
+
+The firefly lights a small area of the clearing. Pointer or keyboard input can find the opening, and releasing within the displayed ring enters the drop state. Chromium covered near-boundary release, invalid release with the clock still running, capture outside the playfield, pause, focus loss, resize and two-finger cancellation. The capture shows the release cue at an emulated 390 × 844 viewport. [Ready to release](evidence/p04-ready.png)
 
 ## P02 evidence
 

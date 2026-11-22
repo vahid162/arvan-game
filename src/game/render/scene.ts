@@ -12,7 +12,7 @@ function stroke(parent: Object3D, points: [number, number, number][], ink: LineB
   parent.add(new Line(path, ink))
 }
 
-function makeFirefly() {
+export function makeFirefly() {
   const fly = new Group()
   const sphere = new SphereGeometry(1, 24, 16)
   const shell = new MeshStandardMaterial({ color: 0x294b48, roughness: 0.56 })

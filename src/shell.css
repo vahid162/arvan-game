@@ -71,7 +71,8 @@ figure { margin: 0; border-bottom: 1px solid var(--hairline); }
 [data-state="failed"] .retry, [data-state="unsupported"] .retry { display: inline-block; }
 figcaption { min-height: 5.5rem; padding-block: .65rem; }
 h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
-#motion {
+.scene-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.scene-controls button {
   display: inline-flex;
   flex-shrink: 0;
   white-space: nowrap;
@@ -88,7 +89,39 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   font: inherit;
   font-size: .82rem;
 }
-#motion:hover { background: #23312a; }
+.scene-controls button:hover { background: #23312a; }
+#play { background: #f0cb7d; border-color: #f0cb7d; color: #172019; font-weight: 650; }
+#play:hover { background: #ffdd99; }
+#game { position: absolute; inset: 0; pointer-events: none; }
+[data-playing="true"] #glade { touch-action: none; }
+.game-hud, #game-hint {
+  position: absolute;
+  background: #101916ed;
+  color: #f1efe0;
+  border: 1px solid #68796ba3;
+}
+.game-hud {
+  inset: .8rem .8rem auto;
+  display: flex;
+  justify-content: space-between;
+  margin-inline: auto;
+  max-width: 24rem;
+  padding: .48rem .85rem;
+  border-radius: .55rem;
+  font-size: .88rem;
+  font-variant-numeric: tabular-nums;
+}
+#game-hint {
+  inset: auto .8rem .8rem;
+  max-width: 27rem;
+  margin: 0 auto;
+  padding: .65rem .8rem;
+  border-radius: .55rem;
+  font-size: .85rem;
+  line-height: 1.4;
+  text-align: center;
+}
+[data-paused="true"] #game-hint { bottom: 42%; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .motion-icon { width: .65rem; height: .75rem; border-inline: 3px solid var(--gold); }
 [data-paused="true"] .motion-icon {
@@ -101,7 +134,7 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
 @media (max-width: 35rem) {
   #viewport { border-radius: 1rem .25rem 1rem .25rem; }
   figcaption { gap: .6rem; }
-  #motion { padding-inline: .8rem; }
+  .scene-controls button { padding-inline: .8rem; }
 }
 @media (max-height: 31rem) and (orientation: landscape) {
   .masthead { min-height: 3.25rem; }

@@ -42,13 +42,24 @@
             <p id="status" role="status">Loading the clearing…</p>
             <a href="" class="retry">Reload preview</a>
           </div>
+          <div id="game" hidden>
+            <div class="game-hud">
+              <span id="game-score">0 light</span>
+              <time id="game-clock" aria-label="Active time remaining"></time>
+            </div>
+            <p id="game-hint" role="status"></p>
+          </div>
         </div>
         <figcaption>
-          <h2>Forest clearing</h2>
-          <button id="motion" type="button" hidden>
-            <span class="motion-icon" aria-hidden="true"></span>
-            <span id="motion-label">Pause motion</span>
-          </button>
+          <h2 id="scene-title">Forest clearing</h2>
+          <div class="scene-controls">
+            <button id="play" type="button" hidden>Start exploring</button>
+            <button id="motion" type="button" hidden>
+              <span class="motion-icon" aria-hidden="true"></span>
+              <span id="motion-label">Pause motion</span>
+            </button>
+            <button id="game-action" type="button" hidden>Pause</button>
+          </div>
         </figcaption>
       </figure>
       <noscript><p>This preview needs JavaScript. Enable it in your browser and reload the page.</p></noscript>

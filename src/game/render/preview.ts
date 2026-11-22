@@ -1,9 +1,19 @@
-import { WebGLRenderer } from 'three';
+import { WebGLRenderer, type Camera, type Scene } from 'three';
 import { createGlade } from './scene';
 import { viewportSize } from './viewport';
 
 export interface Preview {
   setPaused(paused: boolean): void;
+  show(view: View): void;
+  redraw(): void;
+  dispose(): void;
+}
+
+export interface View {
+  scene: Scene;
+  camera: Camera;
+  resize(aspect: number): void;
+  update(elapsedSeconds: number, now?: number): void;
   dispose(): void;
 }
 
@@ -13,15 +23,15 @@ export function createPreview(
   onError: () => void,
 ): Preview {
   const renderer = new WebGLRenderer({ canvas, context });
-  const glade = createGlade();
+  let view: View = createGlade();
   let paused = true;
   let frameId = 0;
   let previousTime: number | undefined;
   let elapsedSeconds = 0;
 
-  function draw() {
-    glade.update(elapsedSeconds);
-    renderer.render(glade.scene, glade.camera);
+  function draw(now?: number) {
+    view.update(elapsedSeconds, now);
+    renderer.render(view.scene, view.camera);
   }
 
   function resize() {
@@ -29,7 +39,7 @@ export function createPreview(
       canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio,
     );
     renderer.setDrawingBufferSize(width, height, pixelRatio);
-    glade.resize(aspect);
+    view.resize(aspect);
     draw();
   }
 
@@ -37,7 +47,7 @@ export function createPreview(
     if (previousTime !== undefined) elapsedSeconds += (now - previousTime) / 1000;
     previousTime = now;
     try {
-      draw();
+      draw(now);
       frameId = requestAnimationFrame(animate);
     } catch {
       onError();
@@ -64,7 +74,7 @@ export function createPreview(
     observer.disconnect();
     window.removeEventListener('resize', onResize);
     document.removeEventListener('visibilitychange', syncMotion);
-    glade.dispose();
+    view.dispose();
     renderer.dispose();
   }
 
@@ -79,10 +89,23 @@ export function createPreview(
   }
 
   return {
+    show(nextView) {
+      view.dispose();
+      view = nextView;
+      resize();
+    },
+    redraw() {
+      try {
+        draw();
+      } catch {
+        onError();
+      }
+    },
     setPaused(value) {
       paused = value;
       syncMotion();
     },
     dispose,
   };
+
 }
