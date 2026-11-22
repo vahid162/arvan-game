@@ -4,21 +4,22 @@ Light Hunt is a single-player browser game in development. The player guides a f
 
 ## Developer setup
 
-The playable demo covers one clearing and one tunnel with twelve lights. To run it locally, use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
+The local demo includes all three forest missions, the guardian’s reward, the upgrade shop, and practice. Use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite and select **Start exploring**.
+Open the local URL printed by Vite. Select **Play story** and **Start mission**. Each mission gives you 90 seconds of active time to collect 22, 25, or 28 lights from three tunnels.
 
-1. Hold and drag to guide the firefly, or move with the arrow keys. Look for an opening near the upper right of the clearing.
+1. Hold and drag to guide the firefly, or move with the arrow keys. Sweep the far side of the clearing to reveal the three openings.
 2. Release when the amber ring and inward arrows appear. With a keyboard, press Space.
 3. At the tunnel entrance, move the mouse, touch the playfield again, or press Left or Right. Steer horizontally to collect lights as the firefly moves forward.
-4. Select **Try again** after returning to the clearing. **Pause** or Escape pauses the demo.
+4. Use **Pause**, Escape, or **Try again** as needed. A retry keeps the same layout. After each win, continue to the next mission to restore more of the forest.
+5. After the third win, return to the clearing. Spend your 12 crystals on a wider exploration light (8) or a wider collection radius (10). **Practice** replays any completed mission with your equipment and saves a separate best score.
 
-The demo honors the browser’s reduced-motion preference and needs WebGL 2. Your score is for this run.
+**Start exploring** is a separate one-tunnel run for learning controls. The game needs WebGL 2 and honors the browser’s reduced-motion preference. Reopen the same URL in the same browser profile to continue your saved forest.
 
 ## Build and verify
 

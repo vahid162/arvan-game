@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { defaultCampaignSeed, generateMission } from '../../src/game/content/generation';
 import { PLAYER_RADIUS } from '../../src/game/core/collection';
-import type { TunnelInstance } from '../../src/game/core/types';
+import type { Profile, TunnelInstance } from '../../src/game/core/types';
+import { PROFILE_KEY } from '../../src/game/profile';
 import {
   beginCentered, collectLights, enterTunnel, exitMs, freezeStoryClock, mouseSteering, releaseAt,
   remainingMissionMs, startBriefedMission, storyPhase, travelMs, winStoryMission,
@@ -13,6 +14,13 @@ const first = openingMission.tunnels[0]!;
 const second = openingMission.tunnels[1]!;
 const third = openingMission.tunnels[2]!;
 const exhausted = 'There are too few lights left in the unopened tunnels to reach the target.';
+
+async function assignedLayout(page: Page) {
+  return page.evaluate(({ key, id }) => {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as Profile).assignedMissions[id] : undefined;
+  }, { key: PROFILE_KEY, id: openingMission.definition.id });
+}
 
 // Ride against the wall on the side with fewer lights. The first light reaches
 // the player after the firefly has had time to reach the wall.
@@ -52,9 +60,10 @@ test('the forest campaign unlocks the 25- and 28-light missions with fresh 90-se
 
 test('using two openings can exhaust the target, and retry restores the same layout and collection', async ({ page }) => {
   test.setTimeout(70_000);
-  const canvas = page.locator('#glade');
+  const { seed, generatorVersion, contentVersion, manifestHash } = openingMission;
+  const original = { seed, generatorVersion, contentVersion, manifestHash };
+  expect(await assignedLayout(page)).toEqual(original);
   await enterTunnel(page, first);
-  const original = await canvas.screenshot();
   const firstScore = await rideOuterLane(page, first);
   await storyPhase(page, 'explore');
   await expect(page.locator('#game-score')).toHaveText(`${firstScore} / 36 lights`);
@@ -74,7 +83,7 @@ test('using two openings can exhaust the target, and retry restores the same lay
   await expect(page.locator('#game-score')).toHaveText('0 / 36 lights');
   expect(await remainingMissionMs(page)).toBe(90_000);
   await enterTunnel(page, first);
-  expect(original.equals(await canvas.screenshot())).toBe(true);
+  expect(await assignedLayout(page)).toEqual(original);
   await rideOuterLane(page, first);
   await expect(page.locator('#game-score')).toHaveText(`${firstScore} / 36 lights`);
 });

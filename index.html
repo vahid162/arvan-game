@@ -44,6 +44,7 @@
           </div>
           <div id="game" hidden>
             <div class="game-hud">
+              <span id="practice-label" hidden>Practice</span>
               <span id="game-score" aria-live="polite">0 lights</span>
               <span id="mission-target" hidden></span>
               <time id="game-clock" aria-label="Active time remaining"></time>
@@ -58,12 +59,37 @@
             <button id="mission-start" type="button">Start mission</button>
             <button id="brief-back" type="button">Back</button>
           </section>
+          <section id="shop-panel" class="game-card" hidden aria-labelledby="shop-title">
+            <h2 id="shop-title">Shop</h2>
+            <p id="shop-balance"></p>
+            <p>The guardian’s reward buys one upgrade.</p>
+            <div class="shop-offer">
+              <p><strong>Exploration light radius</strong><br>Reveal openings 10% farther away.</p>
+              <button type="button" data-upgrade="exploration-radius">Buy for 8 crystals</button>
+            </div>
+            <div class="shop-offer">
+              <p><strong>Collection radius</strong><br>Catch lights from 10% farther away.</p>
+              <button type="button" data-upgrade="collection-radius">Buy for 10 crystals</button>
+            </div>
+            <p id="shop-feedback" role="status" hidden></p>
+            <button id="shop-back" type="button">Back</button>
+          </section>
+          <section id="practice-panel" class="game-card" hidden aria-labelledby="practice-title">
+            <h2 id="practice-title">Practice</h2>
+            <p>Revisit a mission in its original darkness with your current equipment. The forest stays restored.</p>
+            <button type="button" data-practice="0">Mission 1</button>
+            <button type="button" data-practice="1">Mission 2</button>
+            <button type="button" data-practice="2">Mission 3</button>
+            <button id="practice-back" type="button">Back</button>
+          </section>
         </div>
         <figcaption>
           <h2 id="scene-title">Forest clearing</h2>
           <div class="scene-controls">
             <button id="play" type="button" hidden>Start exploring</button>
             <button id="story" type="button" hidden>Play story</button>
+            <button id="shop" type="button" hidden>Shop</button>
+            <button id="practice" type="button" hidden>Practice</button>
             <button id="motion" type="button" hidden>
               <span class="motion-icon" aria-hidden="true"></span>
               <span id="motion-label">Pause motion</span>

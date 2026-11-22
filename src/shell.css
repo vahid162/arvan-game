@@ -90,6 +90,7 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   font-size: .82rem;
 }
 .scene-controls button:hover { background: #23312a; }
+.scene-controls button:disabled, .game-card button:disabled { opacity: .65; cursor: default; }
 #play { background: #f0cb7d; border-color: #f0cb7d; color: #172019; font-weight: 650; }
 #play:hover { background: #ffdd99; }
 #game { position: absolute; inset: 0; pointer-events: none; }
@@ -104,6 +105,8 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   inset: .8rem .8rem auto;
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .3rem .65rem;
   margin-inline: auto;
   max-width: 24rem;
   padding: .48rem .85rem;
@@ -147,6 +150,8 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
   width: min(90%, 24rem);
+  max-height: calc(100% - 1rem);
+  overflow: auto;
   padding: 1.35rem;
   background: #101916f5;
   border: 1px solid #68796ba3;
@@ -157,6 +162,16 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   margin: .2rem .3rem .2rem 0;
   padding: .5rem .8rem;
 }
+.shop-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--hairline);
+  padding-block: .4rem;
+}
+.shop-offer p { margin: .35rem .5rem .35rem 0; font-size: .86rem; line-height: 1.4; }
+#shop-balance, #shop-feedback { color: var(--gold); }
 #forest-progress, #profile-notice { margin-block: .7rem; color: #c8d7c6; }
 #profile-notice { color: #f7ce77; }
 #profile-memory { min-height: 3rem; padding: .5rem .8rem; }

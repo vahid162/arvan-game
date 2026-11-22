@@ -27,6 +27,14 @@ describe('continuous tunnel collection', () => {
       .toEqual([{ id: 'overlap', offsetMs: 0 }]);
   });
 
+  it('extends the combined pickup radius by exactly ten percent', () => {
+    const edge = radius * 1.1;
+    const lamps = [light('edge', 5, edge), light('outside', 5, edge + 0.00001)];
+    expect(sweepLights(lamps, point(0), point(10), 1000, noHits)).toEqual([]);
+    expect(sweepLights(lamps, point(0), point(10), 1000, noHits, 1.1))
+      .toEqual([{ id: 'edge', offsetMs: 500 }]);
+  });
+
   it('reports each new ID once at its earliest contact in time order', () => {
     const collected = new Set(['old']);
     const lamps = [light('duplicate', 9), light('next', 7), light('old', 3), light('duplicate', 2)];

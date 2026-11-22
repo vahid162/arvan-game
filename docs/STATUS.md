@@ -1,5 +1,7 @@
 # Light Hunt development status
 
+**P10 · READY_FOR_REVIEW** — the full forest campaign, upgrade shop and reward-free practice are playable locally on `feat/p07-p10-gameplay-loop`. [Play the game](../README.md#developer-setup)
+
 **P06 · READY_FOR_REVIEW** — the one-tunnel demo is playable locally. Owner feedback on steering and camera feel and physical-phone verification remain open. [Play the demo](../README.md#developer-setup)
 
 **P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. The live probe awaits an approved account, target, asset origin and spending boundary. [Staging probe](../edge/README.md#staging-probe-after-approval)
@@ -16,7 +18,8 @@
 | P07 | `COMPLETE` |
 | P08 | `COMPLETE` |
 | P09 | `COMPLETE` |
-| P10–P15 | `NOT_STARTED` |
+| P10 | `READY_FOR_REVIEW` |
+| P11–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -46,7 +49,13 @@ The campaign advances through targets 22, 25 and 28. Each mission has three seed
 
 ## P09 checkpoint
 
-A winning frame saves the Elixir delivery and restoration before the return animation. The third win restores the last part of the forest, steadies the guardian’s torch and records the one-time 12-crystal reward. Nine save tests covered reload, duplicate completion, competing tabs, and storage failures. Chromium verified the progression from a dark clearing to a fully restored forest.
+A winning frame saves the elixir delivery and restoration before the return animation. The third win restores the last part of the forest, steadies the guardian’s torch and records the one-time 12-crystal reward. Nine save tests covered reload, duplicate completion, competing tabs, and storage failures. Chromium won all three missions, reloaded at the winning frame and during delivery, and verified the single reward and progressive restoration.
+
+## P10 checkpoint
+
+Purchasing the 10% exploration upgrade leaves 4 crystals, or the 10% collection upgrade leaves 2. Ownership and balance survive reload. Practice uses the chosen mission’s original darkness, time and target. It records a best score for that mission and equipment while preserving story progress and currency.
+
+Strict TypeScript and lint passed. All 121 unit cases, 29 Edge contract cases and 26 Chromium cases passed across the first runs and focused reruns. Chromium completed the campaign and a 22-light practice run and exercised both purchases. Controlled cases checked both 10% radius effects. The slow host caused initial setup and geometry timeouts. The retry test now checks the saved layout identity and repeat collection directly. P06 device acceptance and the P02 live probe remain open.
 
 ## P02 evidence
 

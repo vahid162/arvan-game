@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { generateMission } from '../../src/game/content/generation';
+import type { Loadout, UpgradeId } from '../../src/game/core/types';
 import { openProfile, PROFILE_KEY, type ProfileStore } from '../../src/game/profile';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -181,5 +182,100 @@ it('retains a failed save in memory, with the previous durable record intact and
   expect(reloaded.status).toBe('durable');
   expect(reloaded.profile.completedMissionIds).toEqual([]);
   expect(reloaded.assignMission(0)).toEqual(mission);
+  reloaded.close();
+});
+
+function restoreWorld(store: ProfileStore, acknowledgeFinal = true) {
+  for (const index of [0, 1, 2] as const) {
+    const mission = store.assignMission(index)!;
+    expect(store.completeMission(mission)).toBe(true);
+    if (index < 2 || acknowledgeFinal) store.finishPresentation(mission.definition.id);
+  }
+}
+
+it.each([
+  ['exploration-radius', 'collection-radius', 4],
+  ['collection-radius', 'exploration-radius', 2],
+] as const)('purchases %s in one write and retains its level and balance across reload', async (id, other, balance) => {
+  const host = browser();
+  const store = await openProfile();
+  expect(store.purchaseUpgrade(id)).toBe('insufficient');
+  restoreWorld(store, false);
+  expect(store.purchaseUpgrade(id)).toBe('unavailable');
+  expect(store.practiceMission(0)).toBeNull();
+  store.finishPresentation('forest-3');
+  const before = host.storage.setItem.mock.calls.length;
+  expect(store.purchaseUpgrade('unknown' as UpgradeId)).toBe('unavailable');
+  expect(store.purchaseUpgrade(id)).toBe('purchased');
+  expect(JSON.parse(host.raw()!)).toMatchObject({ crystals: balance, upgrades: { [id]: 1 } });
+  expect(store.purchaseUpgrade(id)).toBe('owned');
+  expect(store.purchaseUpgrade(other)).toBe('insufficient');
+  const reloaded = await host.reopen(store);
+  expect(reloaded.status).toBe('durable');
+  expect(reloaded.purchaseUpgrade(id)).toBe('owned');
+  expect(reloaded.purchaseUpgrade(other)).toBe('insufficient');
+  expect(reloaded.profile.crystals).toBe(balance);
+  expect(host.storage.setItem).toHaveBeenCalledTimes(before + 1);
+  reloaded.close();
+});
+
+it('records the highest eligible score for each assigned mission and loadout without changing story progress', async () => {
+  const host = browser();
+  const store = await openProfile();
+  expect(store.practiceMission(0)).toBeNull();
+  restoreWorld(store);
+  const first = store.practiceMission(0)!;
+  const second = store.practiceMission(1)!;
+  const equipped: Loadout = { 'exploration-radius': 1 };
+  expect(store.practiceBest(first, {})).toBeNull();
+  expect(store.recordPractice(first, equipped, 15)).toBeNull();
+  expect(store.recordPractice(first, {}, 0)).toBe(0);
+  expect(store.recordPractice(first, {}, 21)).toBe(21);
+  expect(store.purchaseUpgrade('exploration-radius')).toBe('purchased');
+  const { practiceRecords: beforeRecords, ...story } = store.profile;
+  expect(Object.values(beforeRecords)).toEqual([21]);
+  expect(store.recordPractice(first, equipped, 22)).toBe(22);
+  expect(store.recordPractice(second, {}, 25)).toBe(25);
+  const writes = host.storage.setItem.mock.calls.length;
+  expect(store.recordPractice(first, {}, 10)).toBe(21);
+  expect(store.recordPractice(first, equipped, 22)).toBe(22);
+  for (const score of [-1, 12.5, 23, NaN, Infinity]) expect(store.recordPractice(first, {}, score)).toBeNull();
+  expect(store.recordPractice(generateMission(0, 'different-seed'), {}, 12)).toBeNull();
+  expect(store.recordPractice({ ...first, generatorVersion: 'foreign-rules' }, {}, 12)).toBeNull();
+  expect(store.recordPractice(first, { fake: 1 } as Loadout, 12)).toBeNull();
+  expect(store.completeMission(first, 'practice')).toBe(false);
+  expect(host.storage.setItem).toHaveBeenCalledTimes(writes);
+  const reloaded = await host.reopen(store);
+  expect(reloaded.practiceMission(0)).toEqual(first);
+  expect(reloaded.practiceBest(first, {})).toBe(21);
+  expect(reloaded.practiceBest(first, equipped)).toBe(22);
+  expect(reloaded.practiceBest(second, {})).toBe(25);
+  expect(reloaded.practiceBest(second, equipped)).toBeNull();
+  const { practiceRecords, ...after } = reloaded.profile;
+  expect(Object.values(practiceRecords).sort()).toEqual([21, 22, 25]);
+  expect(after).toEqual(story);
+  const busy = await openProfile();
+  expect(busy.purchaseUpgrade('exploration-radius')).toBe('unavailable');
+  expect(busy.practiceMission(0)).toBeNull();
+  expect(busy.recordPractice(first, {}, 22)).toBeNull();
+  reloaded.close();
+  busy.close();
+});
+
+it('retains both the owned level and its deduction only in memory if persisting the purchase fails', async () => {
+  const host = browser();
+  const store = await openProfile();
+  restoreWorld(store);
+  const before = host.raw();
+  host.storage.setItem.mockImplementation(() => { throw new Error('quota'); });
+  expect(store.purchaseUpgrade('collection-radius')).toBe('purchased');
+  expect(store.status).toBe('memory');
+  expect(store.profile.crystals).toBe(2);
+  expect(store.profile.upgrades).toEqual({ 'collection-radius': 1 });
+  expect(store.purchaseUpgrade('collection-radius')).toBe('owned');
+  expect(host.raw()).toBe(before);
+  const reloaded = await host.reopen(store);
+  expect(reloaded.profile.crystals).toBe(12);
+  expect(reloaded.profile.upgrades).toEqual({});
   reloaded.close();
 });

@@ -1,4 +1,4 @@
-import { TUNNEL_DEMO } from './content/fixtures';
+import { TUNNEL_DEMO, UPGRADES } from './content/fixtures';
 import { createAttempt, reduceAttempt } from './core/attempt';
 import { sweepLights } from './core/collection';
 import type { Anchor, AttemptMode, GeneratedMission, Loadout } from './core/types';
@@ -45,16 +45,24 @@ export function createGame(
   redraw: () => void,
   options: {
     mission?: GeneratedMission;
+    mode?: AttemptMode;
     loadout?: Loadout;
     restored?: number;
-    onSuccess?: (mission: GeneratedMission, mode: AttemptMode) => number;
+    onStoryWin?: (mission: GeneratedMission) => number;
+    onPracticeResult?: (mission: GeneratedMission, loadout: Loadout, score: number) => number | null;
   } = {},
 ): GameView {
   const mission = options.mission ?? TUNNEL_DEMO;
   const demo = mission === TUNNEL_DEMO;
+  const mode = demo ? 'practice' : options.mode ?? 'story';
+  let run = 1;
+  let attempt = createAttempt(mission, { mode, loadout: options.loadout, id: String(run) });
+  const [explorationUpgrade, collectionUpgrade] = UPGRADES;
+  const lightRadiusScale = attempt.loadout[explorationUpgrade.id] ? explorationUpgrade.multiplier : 1;
+  const collectionScale = attempt.loadout[collectionUpgrade.id] ? collectionUpgrade.multiplier : 1;
   const totalLights = mission.tunnels.reduce((sum, track) => sum + track.lights.length, 0);
   const entries = mission.tunnels.map(tunnel => ({ ...tunnel.entry, id: tunnel.id, radius: entryRadius }));
-  const world = createExplorationWorld({ entry: entries[0]!, entries, bounds, story: !demo });
+  const world = createExplorationWorld({ entry: entries[0]!, entries, bounds, story: !demo, lightRadiusScale });
   let restoration = options.restored ?? 0;
   world.setRestoration(restoration);
   const routes = mission.tunnels.map(tunnel => {
@@ -64,9 +72,8 @@ export function createGame(
   let route = routes[0]!;
   let { tunnel, travel, sparks } = route;
   const sound = createPickupSound();
-  let run = 1;
-  const mode = demo ? 'practice' : 'story';
-  let attempt = createAttempt(mission, { mode, loadout: options.loadout, id: String(run) });
+  let recordedPractice = false;
+  let practiceBest: number | null = null;
   let position = start;
   let lastFrame: number | undefined;
   let feedbackUntil = 0;
@@ -122,7 +129,7 @@ export function createGame(
         distance: Math.min(tunnel.length, distance + forwardPerMs * step),
         lateral: lateral + Math.sign(delta) * Math.min(Math.abs(delta), lateralPerMs * step),
       };
-      const hits = sweepLights(tunnel.lights, { distance, lateral }, next, step, attempt.collectedIds);
+      const hits = sweepLights(tunnel.lights, { distance, lateral }, next, step, attempt.collectedIds, collectionScale);
       const previous = attempt;
       attempt = reduceAttempt(attempt, { type: 'advance', elapsedMs: step, hits, attemptId: attempt.id });
       const portion = step ? Math.min(1, (attempt.activeTimeMs - previous.activeTimeMs) / step) : 0;
@@ -134,7 +141,7 @@ export function createGame(
       }
       if (attempt.phase === 'success') {
         returning = true;
-        if (options.onSuccess) restoration = options.onSuccess(mission, mode);
+        if (mode === 'story' && options.onStoryWin) restoration = options.onStoryWin(mission);
       } else if (!attempt.outcome && toEndMs - step < 1e-7) {
         distance = tunnel.length;
         attempt = reduceAttempt(attempt, { type: 'tunnel-finished' });
@@ -254,6 +261,8 @@ export function createGame(
       visualMs = 0;
       pickupMs = -Infinity;
       returned = false;
+      recordedPractice = false;
+      practiceBest = null;
       selectRoute(routes[0]!);
       controls.reset();
       canvas.focus({ preventScroll: true });
@@ -309,13 +318,15 @@ export function createGame(
       const missed = tunnel.lights.length - attempt.collectedIds.size;
       return missed ? `${missed} missed. Try again and steer toward the next light earlier.` : 'All 12 lights collected!';
     }
-    if (!demo && !returning && attempt.outcome?.kind === 'success') return 'You collected enough light.';
+    const record = practiceBest === null ? '' : ` Best with this equipment: ${practiceBest} lights.`;
+    if (!demo && !returning && attempt.outcome?.kind === 'success') return `You reached the target.${record}`;
     if (!demo && !returning && attempt.outcome?.kind === 'failure') {
-      return attempt.outcome.reason === 'deadline'
+      const reason = attempt.outcome.reason === 'deadline'
         ? 'Time ran out before you reached the target.'
         : 'There are too few lights left in the unopened tunnels to reach the target.';
+      return reason + record;
     }
-    if (!demo && returning && attempt.outcome?.kind === 'success') return 'The lights formed an elixir. Returning to the guardian…';
+    if (mode === 'story' && returning && attempt.outcome?.kind === 'success') return 'The lights formed an elixir. Returning to the guardian…';
     if (returning) return 'Returning to the clearing…';
     if (attempt.phase === 'drop') return 'Dropping into the tunnel…';
     if (attempt.phase === 'tunnel-ready') return 'Move the mouse, touch the tunnel, or press Left or Right to start.';
@@ -357,15 +368,19 @@ export function createGame(
         progress: pose === 'drop' ? phaseTime / dropMs : pose === 'exit' ? phaseTime / exitMs : 0,
       });
       sparks.sync(attempt.collectedIds, visualMs / 1000, reducedMotion);
+      const outcome = returning ? null : attempt.outcome;
+      if (mode === 'practice' && outcome && !recordedPractice && options.onPracticeResult) {
+        recordedPractice = true;
+        practiceBest = options.onPracticeResult(mission, attempt.loadout, attempt.collectedIds.size);
+      }
       showHud({
         phase, paused: attempt.paused || returnPaused, ready,
         timeLeftMs: mission.definition.timeLimitMs - attempt.activeTimeMs,
         lights: attempt.collectedIds.size, total: totalLights,
         target: demo ? null : mission.definition.targetLight,
-        result: demo || returning || !attempt.outcome ? '' :
-          attempt.outcome.kind === 'success' ? 'Mission complete' : 'Mission failed',
-        storyWon: !demo && !returning && attempt.outcome?.kind === 'success',
-        carryingElixir: !demo && returning && attempt.outcome?.kind === 'success',
+        result: demo || !outcome ? '' : `${mode === 'story' ? 'Mission' : 'Practice'} ${outcome.kind === 'success' ? 'complete' : 'failed'}`,
+        storyWon: mode === 'story' && outcome?.kind === 'success',
+        carryingElixir: mode === 'story' && returning && attempt.outcome?.kind === 'success',
         collecting: visualMs - pickupMs < 230, hint: hint(ready),
         action: attempt.paused || returnPaused ? 'Resume' : returned || (attempt.outcome && !returning) ? 'Try again' : 'Pause',
       });

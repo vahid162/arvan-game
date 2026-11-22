@@ -1,11 +1,12 @@
-import { FOREST, UPGRADES } from './content/fixtures';
+import { FOREST, FOREST_MISSIONS, UPGRADES } from './content/fixtures';
 import { defaultCampaignSeed, generateMission } from './content/generation';
-import type { AttemptMode, GeneratedMission, MissionIdentity, Profile } from './core/types';
+import type { AttemptMode, GeneratedMission, Loadout, MissionIdentity, Profile, UpgradeId } from './core/types';
 
 export const PROFILE_KEY = 'light-hunt.profile.v1';
 const writerLock = 'light-hunt.profile.writer';
 type MissionIndex = 0 | 1 | 2;
 export type ProfileStatus = 'durable' | 'memory' | 'busy' | 'corrupt' | 'future' | 'unavailable';
+export type PurchaseResult = 'purchased' | 'owned' | 'insufficient' | 'unavailable';
 
 export interface ProfileStore {
   readonly profile: Profile;
@@ -14,6 +15,10 @@ export interface ProfileStore {
   assignMission(index: MissionIndex): GeneratedMission | null;
   completeMission(mission: GeneratedMission, mode?: AttemptMode): boolean;
   finishPresentation(missionId: string): void;
+  purchaseUpgrade(id: UpgradeId): PurchaseResult;
+  practiceMission(index: MissionIndex): GeneratedMission | null;
+  recordPractice(mission: GeneratedMission, loadout: Loadout, score: number): number | null;
+  practiceBest(mission: GeneratedMission, loadout: Loadout): number | null;
   close(): void;
 }
 
@@ -38,6 +43,11 @@ function sameIdentity(receipt: MissionIdentity, mission: GeneratedMission): bool
     receipt.contentVersion === mission.contentVersion && receipt.manifestHash === mission.manifestHash;
 }
 
+function practiceKey(id: string, receipt: MissionIdentity, loadout: Loadout): string {
+  return JSON.stringify([id, receipt.seed, receipt.generatorVersion, receipt.contentVersion, receipt.manifestHash,
+    'forest-practice-rules-1', ...UPGRADES.map(upgrade => loadout[upgrade.id] ?? 0)]);
+}
+
 function validProfile(value: Record<string, unknown>): boolean {
   const { completedMissionIds: completed, claimedWorldIds: claimed, crystals, upgrades, assignedMissions: assigned,
     pendingPresentationMissionId: pending, practiceRecords: practice, settings } = value;
@@ -49,24 +59,29 @@ function validProfile(value: Record<string, unknown>): boolean {
   if (pending !== null && (typeof pending !== 'string' || pending !== completed.at(-1))) return false;
   if (typeof settings.sound !== 'boolean' || typeof settings.reducedMotion !== 'boolean' ||
       typeof settings.sensitivity !== 'number' || !Number.isFinite(settings.sensitivity) || settings.sensitivity <= 0) return false;
-  if (Object.values(practice).some(score => typeof score !== 'number' || !Number.isSafeInteger(score) || score < 0)) return false;
-
   let balance = restored ? FOREST.rewardCrystals : 0;
+  const loadouts: Loadout[] = [{}];
   for (const [id, level] of Object.entries(upgrades)) {
     const upgrade = UPGRADES.find(item => item.id === id);
     if (!upgrade || level !== 1) return false;
     balance -= upgrade.cost;
+    loadouts.push({ [upgrade.id]: 1 });
   }
   if (balance < 0 || crystals !== balance) return false;
   if (completed.some(id => !Object.hasOwn(assigned, id))) return false;
+  const eligibleRecords = new Map<string, number>();
   for (const [id, receipt] of Object.entries(assigned)) {
     const index = FOREST.missionIds.indexOf(id);
     if (index < 0 || index > completed.length || !record(receipt) || typeof receipt.seed !== 'string' || !receipt.seed) return false;
     const mission = generateMission(index as MissionIndex, receipt.seed);
     if (receipt.generatorVersion !== mission.generatorVersion || receipt.contentVersion !== mission.contentVersion ||
         receipt.manifestHash !== mission.manifestHash) return false;
+    if (restored && pending === null) {
+      for (const loadout of loadouts) eligibleRecords.set(practiceKey(id, mission, loadout), mission.definition.targetLight);
+    }
   }
-  return true;
+  return Object.entries(practice).every(([key, score]) => typeof score === 'number' &&
+    Number.isSafeInteger(score) && score >= 0 && score <= (eligibleRecords.get(key) ?? -1));
 }
 
 function decode(raw: string | null): { profile: Profile; status: ProfileStatus } {
@@ -107,6 +122,18 @@ export async function openProfile(): Promise<ProfileStore> {
   let closed = false;
   let release: (() => void) | undefined;
   const writable = () => !closed && (status === 'durable' || status === 'memory');
+  const practiceOpen = () => writable() && profile.claimedWorldIds.includes(FOREST.id) && profile.pendingPresentationMissionId === null;
+
+  function compatibleRecord(mission: GeneratedMission, loadout: Loadout) {
+    const id = mission?.definition?.id;
+    const index = FOREST.missionIds.indexOf(id);
+    if (!practiceOpen() || index < 0 || !record(loadout)) return null;
+    const assigned = profile.assignedMissions[id];
+    if (!assigned || !sameIdentity(assigned, mission)) return null;
+    if (Object.entries(loadout).some(([id, level]) =>
+      level !== 1 || !UPGRADES.some(upgrade => upgrade.id === id && profile.upgrades[upgrade.id] === 1))) return null;
+    return { key: practiceKey(id, assigned, loadout), max: FOREST_MISSIONS[index]!.definition.targetLight };
+  }
 
   function commit(next: Profile) {
     if (status === 'durable') {
@@ -142,6 +169,32 @@ export async function openProfile(): Promise<ProfileStore> {
     },
     finishPresentation(id) {
       if (writable() && profile.pendingPresentationMissionId === id) commit({ ...profile, pendingPresentationMissionId: null });
+    },
+    purchaseUpgrade(id) {
+      const upgrade = UPGRADES.find(item => item.id === id);
+      if (!writable() || !upgrade || profile.pendingPresentationMissionId !== null) return 'unavailable';
+      if (profile.upgrades[id] === 1) return 'owned';
+      if (profile.crystals < upgrade.cost) return 'insufficient';
+      commit({ ...profile, crystals: profile.crystals - upgrade.cost, upgrades: { ...profile.upgrades, [id]: 1 } });
+      return 'purchased';
+    },
+    practiceMission(index) {
+      if (!practiceOpen() || !Number.isInteger(index)) return null;
+      const id = FOREST.missionIds[index];
+      const assigned = id && profile.assignedMissions[id];
+      return assigned ? generateMission(index, assigned.seed) : null;
+    },
+    recordPractice(mission, loadout, score) {
+      const entry = compatibleRecord(mission, loadout);
+      if (!entry || !Number.isSafeInteger(score) || score < 0 || score > entry.max) return null;
+      const best = profile.practiceRecords[entry.key];
+      if (best !== undefined && best >= score) return best;
+      commit({ ...profile, practiceRecords: { ...profile.practiceRecords, [entry.key]: score } });
+      return score;
+    },
+    practiceBest(mission, loadout) {
+      const entry = compatibleRecord(mission, loadout);
+      return entry ? profile.practiceRecords[entry.key] ?? null : null;
     },
     close() {
       closed = true;

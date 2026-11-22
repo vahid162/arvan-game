@@ -11,7 +11,13 @@ import { makeFirefly } from './scene';
 
 interface Bounds { halfWidth: number; halfDepth: number }
 type Entrance = Anchor & { radius: number };
-interface ExplorationOptions { entry: Entrance; entries?: readonly (Entrance & { id: string })[]; bounds: Bounds; story?: boolean }
+interface ExplorationOptions {
+  entry: Entrance;
+  entries?: readonly (Entrance & { id: string })[];
+  bounds: Bounds;
+  story?: boolean;
+  lightRadiusScale?: number;
+}
 interface ExplorationFrame {
   position: Anchor;
   ready?: boolean;
@@ -212,7 +218,7 @@ function makeEntrance(anchor: Entrance, id?: string) {
   return { anchor, id, group, pit, rim, cues, closed };
 }
 
-export function createExplorationWorld({ entry, entries, bounds, story = false }: ExplorationOptions) {
+export function createExplorationWorld({ entry, entries, bounds, story = false, lightRadiusScale = 1 }: ExplorationOptions) {
   const scene = new Scene();
   const sky = new Color(0x10292e);
   const mist = new FogExp2(0x173737, 0.038);
@@ -227,12 +233,14 @@ export function createExplorationWorld({ entry, entries, bounds, story = false }
   if (guardian) scene.add(guardian.group);
 
   const lightAt = new Vector2();
+  const poolRadii = new Vector2(0.06, 1.86).multiplyScalar(lightRadiusScale);
+  const fullRevealRadius = 0.75 * lightRadiusScale;
   const aperture = new Vector3();
   const restorationFront = { value: 200 };
   const torchLight = { value: 0 };
   const ground = new Mesh(new PlaneGeometry(120, 120), new ShaderMaterial({
     uniforms: {
-      lightAt: { value: lightAt }, aperture: { value: aperture }, restorationFront,
+      lightAt: { value: lightAt }, poolRadii: { value: poolRadii }, aperture: { value: aperture }, restorationFront,
       torchAt: { value: guardian?.torchAt ?? new Vector2() }, torchLight,
     },
     vertexShader: `varying vec2 groundPos;
@@ -243,6 +251,7 @@ export function createExplorationWorld({ entry, entries, bounds, story = false }
       }`,
     fragmentShader: `varying vec2 groundPos;
       uniform vec2 lightAt;
+      uniform vec2 poolRadii;
       uniform vec3 aperture;
       uniform float restorationFront;
       uniform vec2 torchAt;
@@ -260,7 +269,7 @@ export function createExplorationWorld({ entry, entries, bounds, story = false }
         float torchDistance = distance(p, torchAt);
         ground += vec3(0.25,0.14,0.026) * torchLight * exp(-1.35*torchDistance*torchDistance);
         float d = distance(p, lightAt);
-        float pool = 1.0 - smoothstep(0.06, 1.86, d);
+        float pool = 1.0 - smoothstep(poolRadii.x, poolRadii.y, d);
         ground += vec3(0.21, 0.135, 0.025) * pool * pool;
         float farGround = smoothstep(6.0, 18.0, length(p));
         vec3 haze = mix(vec3(0.009, 0.034, 0.034), vec3(0.12,0.22,0.14), meadow);
@@ -316,7 +325,7 @@ export function createExplorationWorld({ entry, entries, bounds, story = false }
     for (const entrance of entrances) {
       const { anchor, group, rim, cues, closed, id } = entrance;
       const distance = Math.hypot(position.x - anchor.x, position.z - anchor.z);
-      const visibility = 1 - MathUtils.smoothstep(distance, 0.75, 1.86);
+      const visibility = 1 - MathUtils.smoothstep(distance, fullRevealRadius, poolRadii.y);
       const taken = consumedIds && id !== undefined ? consumedIds.has(id) : !!used && entrance === entrances[0];
       const active = readyId !== undefined ? readyId === id : !!ready && entrance === entrances[0];
       group.visible = visibility > 0;

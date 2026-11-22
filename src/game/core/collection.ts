@@ -11,7 +11,7 @@ interface TunnelPoint {
 /** Timestamp first contact along one linear step in tunnel-local world units. */
 export function sweepLights(
   lights: readonly Collectible[], from: TunnelPoint, to: TunnelPoint,
-  elapsedMs: number, collected: ReadonlySet<string>,
+  elapsedMs: number, collected: ReadonlySet<string>, radiusScale = 1,
 ): Hit[] {
   const forward = to.distance - from.distance;
   const sideways = to.lateral - from.lateral;
@@ -26,7 +26,7 @@ export function sweepLights(
     if (collected.has(light.id)) continue;
     const dx = light.distance - from.distance;
     const dy = light.lateral - from.lateral;
-    const radius = PLAYER_RADIUS + light.radius;
+    const radius = (PLAYER_RADIUS + light.radius) * radiusScale;
     if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(radius) || light.radius < 0) continue;
     let offsetMs = 0;
     if (Math.hypot(dx, dy) > radius) {
