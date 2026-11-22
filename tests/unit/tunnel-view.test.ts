@@ -1,11 +1,10 @@
 import { expect, it, onTestFinished } from 'vitest';
 import { Raycaster, Vector3, type PerspectiveCamera } from 'three';
-import { FOREST_MISSIONS } from '../../src/game/content/fixtures';
+import { FOREST_MISSIONS, P07_MISSION } from '../../src/game/content/fixtures';
 import { createExplorationWorld } from '../../src/game/render/exploration';
 import { createTunnelView } from '../../src/game/render/tunnel';
 
 const tunnel = FOREST_MISSIONS[0].tunnels[0]!;
-const release = { x: tunnel.entry.x + 0.2, z: tunnel.entry.z - 0.1 };
 const worldUp = new Vector3(0, 1, 0);
 
 function cameraPose(camera: PerspectiveCamera) {
@@ -19,13 +18,14 @@ function expectSameCamera(actual: ReturnType<typeof cameraPose>, expected: Retur
   expect(actual.aspect).toBeCloseTo(expected.aspect, 6);
 }
 
-function setup(aspect = 1) {
+function setup(aspect = 1, instance = tunnel) {
+  const release = { x: instance.entry.x + 0.2, z: instance.entry.z - 0.1 };
   const world = createExplorationWorld({
-    entry: { ...tunnel.entry, radius: 0.49 },
+    entry: { ...instance.entry, radius: 0.49 },
     bounds: { halfWidth: 3.7, halfDepth: 3.8 },
   });
   world.resize(aspect);
-  const view = createTunnelView(world, tunnel);
+  const view = createTunnelView(world, instance);
   onTestFinished(() => { view.dispose(); world.dispose(); });
 
   function pose(phase: Parameters<typeof view.applyPose>[0]['phase'], progress: number, distance: number, lateral = 0) {
@@ -35,11 +35,11 @@ function setup(aspect = 1) {
     view.applyPose({ phase, progress, distance, lateral, position, reducedMotion: true });
     return { camera: cameraPose(view.camera), fly: world.firefly.position.clone() };
   }
-  return { world, view, pose };
+  return { world, view, pose, release };
 }
 
 it.each([390 / 844, 900 / 500])('joins the exploration and chase poses without a jump at aspect %f', aspect => {
-  const { world, pose } = setup(aspect);
+  const { world, pose, release } = setup(aspect);
   const explorationCamera = cameraPose(world.camera);
   const start = pose('drop', 0, 0);
   expectSameCamera(start.camera, explorationCamera);
@@ -137,5 +137,26 @@ it('keeps the chase eye and its near plane inside the bore as the firefly moves 
     const halfHeight = view.camera.near * Math.tan(view.camera.fov * Math.PI / 360);
     const nearCornerDistance = Math.hypot(view.camera.near, halfHeight, halfHeight * view.camera.aspect);
     expect(eyeDistance + nearCornerDistance).toBeLessThan(tunnel.width / 2);
+  }
+});
+
+it.each([390 / 844, 900 / 500])('keeps both outside lanes visible through all three mission tunnels at aspect %f', aspect => {
+  const ray = new Raycaster();
+  for (const instance of P07_MISSION.tunnels) {
+    const { view, pose } = setup(aspect, instance);
+    view.group.updateWorldMatrix(true, true);
+    for (let step = 0; step <= 48; step++) {
+      const distance = instance.length * step / 48;
+      for (const lateral of [-1.32, 0, 1.32]) {
+        const { fly, camera } = pose('tunnel', 0, distance, lateral);
+        const toFly = fly.clone().sub(camera.eye);
+        ray.near = view.camera.near;
+        ray.far = toFly.length() - 0.095;
+        ray.set(camera.eye, toFly.normalize());
+        expect(ray.intersectObject(view.group), `${instance.id} wall at distance ${distance}, lane ${lateral}`).toHaveLength(0);
+        const screen = fly.project(view.camera);
+        expect(Math.max(Math.abs(screen.x), Math.abs(screen.y), Math.abs(screen.z))).toBeLessThan(1);
+      }
+    }
   }
 });

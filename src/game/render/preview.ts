@@ -5,6 +5,7 @@ import { viewportSize } from './viewport';
 export interface Preview {
   setPaused(paused: boolean): void;
   show(view: View): void;
+  showIntro(): void;
   redraw(): void;
   dispose(): void;
 }
@@ -93,6 +94,9 @@ export function createPreview(
       view.dispose();
       view = nextView;
       resize();
+    },
+    showIntro() {
+      this.show(createGlade());
     },
     redraw() {
       try {

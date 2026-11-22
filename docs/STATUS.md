@@ -13,7 +13,8 @@
 | P04 | `COMPLETE` |
 | P05 | `COMPLETE` |
 | P06 | `READY_FOR_REVIEW` |
-| P07–P15 | `NOT_STARTED` |
+| P07 | `COMPLETE` |
+| P08–P15 | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -32,6 +33,10 @@ One distance-sampled curve connects the opening to a separate forest exit. The c
 Fresh mouse, touch or keyboard input starts the tunnel. The firefly advances automatically while the player steers across the tunnel. Swept collision records first contact with each of 12 lights. Confirmed pickups update the score, flash and play a short note. The ride returns to the clearing and offers a same-layout retry.
 
 Strict TypeScript and lint passed. `npm run test:unit` passed 23 tests, `npm run test:edge` passed 29, and `npm run test:browser:edge` passed 14 through the local Edge adapter. All seven gameplay browser tests passed again after the final keyboard timing fix. Chromium collected 4 of 12 by staying centered and 12 of 12 by steering. The browser suite also checked touch lift and recontact, pause, and a long frame that spans the end of travel and the return while charging only the active time. The local production preview emitted four Web Audio notes on the four-pickup keyboard run. [Emulated tunnel](evidence/p06-tunnel.png) · [Emulated result](evidence/p06-result.png)
+
+## P07 checkpoint
+
+The 25-of-36 mission now plays through three openings with a 90-second active clock. Chromium drove the 8+9+8 win at active second 73, checked that used openings stay shut and verified free retry with the same layout. The reducer and browser checks cover deadline and exhausted-opportunity outcomes. Camera tests verified the added routes in portrait and landscape.
 
 ## P02 evidence
 

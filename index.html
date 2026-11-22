@@ -45,20 +45,30 @@
           <div id="game" hidden>
             <div class="game-hud">
               <span id="game-score" aria-live="polite">0 lights</span>
+              <span id="mission-target" hidden></span>
               <time id="game-clock" aria-label="Active time remaining"></time>
             </div>
+            <h2 id="mission-result" hidden></h2>
             <p id="game-hint" role="status"></p>
           </div>
+          <section id="briefing" class="game-card" hidden aria-labelledby="brief-title">
+            <h2 id="brief-title">Into the darkness</h2>
+            <p id="brief-detail"></p>
+            <button id="mission-start" type="button">Start mission</button>
+            <button id="brief-back" type="button">Back</button>
+          </section>
         </div>
         <figcaption>
           <h2 id="scene-title">Forest clearing</h2>
           <div class="scene-controls">
             <button id="play" type="button" hidden>Start exploring</button>
+            <button id="story" type="button" hidden>Play story</button>
             <button id="motion" type="button" hidden>
               <span class="motion-icon" aria-hidden="true"></span>
               <span id="motion-label">Pause motion</span>
             </button>
             <button id="game-action" type="button" hidden>Pause</button>
+            <button id="game-menu" type="button" hidden>Back to menu</button>
           </div>
         </figcaption>
       </figure>

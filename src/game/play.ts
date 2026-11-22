@@ -1,7 +1,7 @@
-import { TUNNEL_DEMO as mission } from './content/fixtures';
+import { TUNNEL_DEMO } from './content/fixtures';
 import { createAttempt, reduceAttempt } from './core/attempt';
 import { sweepLights } from './core/collection';
-import type { Anchor } from './core/types';
+import type { Anchor, GeneratedMission, Loadout } from './core/types';
 import { bindControls } from './input/controls';
 import { createExplorationWorld } from './render/exploration';
 import { createTunnelLights } from './render/lights';
@@ -9,15 +9,12 @@ import { createPickupSound } from './render/pickup-sound';
 import type { View } from './render/preview';
 import { createTunnelView } from './render/tunnel';
 
-const tunnel = mission.tunnels[0]!;
 const start: Anchor = { x: -1.45, z: 1.35 };
 const bounds = { halfWidth: 3.7, halfDepth: 3.8 };
 const entryRadius = 0.49;
 const dropMs = 1200;
 const exitMs = 1400;
-const laneLimit = tunnel.width / 2 - .43;
 const lateralPerMs = .003;
-const forwardPerMs = tunnel.speed / 1000;
 
 export interface GameHud {
   phase: string;
@@ -26,12 +23,15 @@ export interface GameHud {
   timeLeftMs: number;
   lights: number;
   total: number;
+  target: number | null;
+  result: string;
   collecting: boolean;
   hint: string;
   action: string;
 }
 
 export interface GameView extends View {
+  startClock(): void;
   action(): void;
   setReducedMotion(reduced: boolean): void;
 }
@@ -41,13 +41,23 @@ export function createGame(
   initialReducedMotion: boolean,
   showHud: (hud: GameHud) => void,
   redraw: () => void,
+  options: { mission?: GeneratedMission; loadout?: Loadout } = {},
 ): GameView {
-  const world = createExplorationWorld({ entry: { ...tunnel.entry, radius: entryRadius }, bounds });
-  const travel = createTunnelView(world, tunnel);
-  const sparks = createTunnelLights(travel, tunnel);
+  const mission = options.mission ?? TUNNEL_DEMO;
+  const demo = mission === TUNNEL_DEMO;
+  const totalLights = mission.tunnels.reduce((sum, track) => sum + track.lights.length, 0);
+  const entries = mission.tunnels.map(tunnel => ({ ...tunnel.entry, id: tunnel.id, radius: entryRadius }));
+  const world = createExplorationWorld({ entry: entries[0]!, entries, bounds });
+  const routes = mission.tunnels.map(tunnel => {
+    const travel = createTunnelView(world, tunnel);
+    return { tunnel, travel, sparks: createTunnelLights(travel, tunnel) };
+  });
+  let route = routes[0]!;
+  let { tunnel, travel, sparks } = route;
   const sound = createPickupSound();
   let run = 1;
-  let attempt = createAttempt(mission, { mode: 'practice', id: String(run) });
+  const mode = demo ? 'practice' : 'story';
+  let attempt = createAttempt(mission, { mode, loadout: options.loadout, id: String(run) });
   let position = start;
   let lastFrame: number | undefined;
   let feedbackUntil = 0;
@@ -66,8 +76,18 @@ export function createGame(
   let visualMs = 0;
   let pickupMs = -Infinity;
 
-  function nearEntry() {
-    return Math.hypot(position.x - tunnel.entry.x, position.z - tunnel.entry.z) <= entryRadius + 1e-9;
+  function readyRoute() {
+    return routes.find(({ tunnel }) => !attempt.consumedTunnelIds.has(tunnel.id) &&
+      Math.hypot(position.x - tunnel.entry.x, position.z - tunnel.entry.z) <= entryRadius + 1e-9);
+  }
+
+  function selectRoute(next: typeof route) {
+    travel.group.visible = false;
+    route = next;
+    ({ tunnel, travel, sparks } = route);
+    distance = 0;
+    lateral = 0;
+    phaseTime = 0;
   }
 
   function moveTo(anchor: Anchor) {
@@ -78,6 +98,8 @@ export function createGame(
   }
 
   function advanceTunnel(elapsedMs: number) {
+    const forwardPerMs = tunnel.speed / 1000;
+    const laneLimit = tunnel.width / 2 - .43;
     let remaining = elapsedMs;
     const direction = controls.move().x;
     while (remaining > 1e-7 && attempt.phase === 'tunnel-active') {
@@ -119,14 +141,20 @@ export function createGame(
 
   function advanceReturn(elapsedMs: number) {
     // A final hit can occur before the end. Coast along the same curve after success.
+    const forwardPerMs = tunnel.speed / 1000;
     const coastMs = Math.min(elapsedMs, (tunnel.length - distance) / forwardPerMs);
     distance = Math.min(tunnel.length, distance + coastMs * forwardPerMs);
     phaseTime += elapsedMs - coastMs;
     if (phaseTime < exitMs - 1e-7) return;
-    if (!attempt.outcome) attempt = reduceAttempt(attempt, { type: 'exit-finished' });
+    if (!attempt.outcome) {
+      attempt = reduceAttempt(attempt, { type: 'exit-finished' });
+      if (!demo && phaseTime > exitMs) {
+        attempt = reduceAttempt(attempt, { type: 'advance', elapsedMs: phaseTime - exitMs });
+      }
+    }
     position = tunnel.exit;
     returning = false;
-    returned = true;
+    returned = demo || attempt.outcome !== null;
     phaseTime = 0;
     distance = 0;
   }
@@ -164,7 +192,9 @@ export function createGame(
   function release(inside: boolean) {
     advanceTo(performance.now());
     if (attempt.phase !== 'explore' || attempt.paused || returned) return;
-    if (inside && nearEntry()) {
+    const next = inside ? readyRoute() : undefined;
+    if (next) {
+      selectRoute(next);
       attempt = reduceAttempt(attempt, { type: 'enter-tunnel', tunnelId: tunnel.id });
       controls.reset();
     } else {
@@ -203,7 +233,7 @@ export function createGame(
       const id = String(++run);
       attempt = attempt.outcome?.kind === 'failure'
         ? reduceAttempt(attempt, { type: 'retry', id })
-        : createAttempt(mission, { mode: 'practice', id });
+        : createAttempt(mission, { mode, id, loadout: attempt.loadout });
       position = start;
       lastFrame = performance.now();
       feedbackUntil = 0;
@@ -213,6 +243,7 @@ export function createGame(
       visualMs = 0;
       pickupMs = -Infinity;
       returned = false;
+      selectRoute(routes[0]!);
       controls.reset();
       canvas.focus({ preventScroll: true });
       redraw();
@@ -252,6 +283,7 @@ export function createGame(
         return;
       }
       const lane = pointerStartLane + (clientX - pointerStartX) * tunnel.width / (Math.max(1, canvas.clientWidth) * .65);
+      const laneLimit = tunnel.width / 2 - .43;
       desiredLateral = Math.max(-laneLimit, Math.min(laneLimit, lane));
     },
     beforeInput: () => advanceTo(performance.now()),
@@ -262,9 +294,15 @@ export function createGame(
 
   function hint(ready: boolean) {
     if (attempt.paused || returnPaused) return 'Paused. Resume when you’re ready.';
-    if (returned) {
+    if (returned && demo) {
       const missed = tunnel.lights.length - attempt.collectedIds.size;
       return missed ? `${missed} missed. Try again and steer toward the next light earlier.` : 'All 12 lights collected!';
+    }
+    if (!demo && !returning && attempt.outcome?.kind === 'success') return 'You collected enough light.';
+    if (!demo && !returning && attempt.outcome?.kind === 'failure') {
+      return attempt.outcome.reason === 'deadline'
+        ? 'Time ran out before you reached the target.'
+        : 'There are too few lights left in the unopened tunnels to reach the target.';
     }
     if (returning) return 'Returning to the clearing…';
     if (attempt.phase === 'drop') return 'Dropping into the tunnel…';
@@ -278,7 +316,7 @@ export function createGame(
 
   return {
     scene: world.scene,
-    camera: travel.camera,
+    get camera() { return travel.camera; },
     resize(nextAspect) {
       const next = canvas.getBoundingClientRect();
       if (viewport?.width === next.width && viewport.height === next.height &&
@@ -293,8 +331,10 @@ export function createGame(
     },
     update(_elapsed, now) {
       if (now !== undefined) advanceTo(now);
-      const ready = attempt.phase === 'explore' && !returned && nearEntry();
-      world.update({ position, ready, used: returned, elapsedSeconds: visualMs / 1000, reducedMotion });
+      const readyId = attempt.phase === 'explore' && !returned ? readyRoute()?.tunnel.id ?? null : null;
+      const ready = readyId !== null;
+      world.update({ position, ready, used: returned, readyId, consumedIds: attempt.consumedTunnelIds,
+        elapsedSeconds: visualMs / 1000, reducedMotion });
       const phase = returning ? 'exit' : returned ? 'explore' : attempt.phase;
       const pose = phase === 'drop' || phase === 'exit' ? phase
         : phase === 'tunnel-ready' ? 'ready'
@@ -308,11 +348,15 @@ export function createGame(
       showHud({
         phase, paused: attempt.paused || returnPaused, ready,
         timeLeftMs: mission.definition.timeLimitMs - attempt.activeTimeMs,
-        lights: attempt.collectedIds.size, total: tunnel.lights.length,
+        lights: attempt.collectedIds.size, total: totalLights,
+        target: demo ? null : mission.definition.targetLight,
+        result: demo || returning || !attempt.outcome ? '' :
+          attempt.outcome.kind === 'success' ? 'Mission complete' : 'Mission failed',
         collecting: visualMs - pickupMs < 230, hint: hint(ready),
         action: attempt.paused || returnPaused ? 'Resume' : returned || (attempt.outcome && !returning) ? 'Try again' : 'Pause',
       });
     },
+    startClock() { lastFrame = performance.now(); },
     action,
     setReducedMotion(reduced) {
       reducedMotion = reduced;
@@ -321,8 +365,10 @@ export function createGame(
     dispose() {
       controls.dispose();
       sound.dispose();
-      sparks.dispose();
-      travel.dispose();
+      for (const track of routes) {
+        track.sparks.dispose();
+        track.travel.dispose();
+      }
       world.dispose();
     },
   };

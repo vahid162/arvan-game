@@ -44,6 +44,19 @@ export const FOREST_MISSIONS = [
   mission(2, 28, '99fb13720f50e71541c7f57b08a06f503b20152a63f01dc8f85a75b3bf93b04b'),
 ] as const;
 
+// Keep the returning leg clear of the playable lanes on the fixed three-opening route.
+const forestTwo = FOREST_MISSIONS[1];
+export const P07_MISSION: GeneratedMission = {
+  ...forestTwo,
+  seed: 'forest-2/three-openings',
+  manifestHash: 'a8a8c4b32bebf04d7e1ff1ff60058928a02d755cea2be7dc737febb405d8a227',
+  tunnels: [
+    forestTwo.tunnels[0]!,
+    { ...forestTwo.tunnels[1]!, exit: { x: 0.05, z: 2.55 } },
+    { ...forestTwo.tunnels[2]!, exit: { x: -3.15, z: 1.25 } },
+  ],
+};
+
 const demoTunnel = FOREST_MISSIONS[0].tunnels[0]!;
 export const TUNNEL_DEMO: GeneratedMission = {
   definition: { id: 'tunnel-demo', worldId: FOREST.id, timeLimitMs: 90_000,

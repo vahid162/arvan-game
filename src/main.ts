@@ -1,5 +1,7 @@
 import type { Preview } from './game/render/preview';
 import type { GameHud, GameView } from './game/play';
+import type { GeneratedMission } from './game/core/types';
+import { P07_MISSION } from './game/content/fixtures';
 
 const shell = document.querySelector<HTMLElement>('#shell')!;
 const canvas = document.querySelector<HTMLCanvasElement>('#glade')!;
@@ -7,7 +9,15 @@ const statusMessage = document.querySelector<HTMLElement>('#status')!;
 const motion = document.querySelector<HTMLButtonElement>('#motion')!;
 const motionLabel = document.querySelector<HTMLElement>('#motion-label')!;
 const play = document.querySelector<HTMLButtonElement>('#play')!;
+const story = document.querySelector<HTMLButtonElement>('#story')!;
+const briefing = document.querySelector<HTMLElement>('#briefing')!;
+const briefDetail = document.querySelector<HTMLElement>('#brief-detail')!;
+const missionStart = document.querySelector<HTMLButtonElement>('#mission-start')!;
+const briefBack = document.querySelector<HTMLButtonElement>('#brief-back')!;
+const missionTarget = document.querySelector<HTMLElement>('#mission-target')!;
+const missionResult = document.querySelector<HTMLElement>('#mission-result')!;
 const gameAction = document.querySelector<HTMLButtonElement>('#game-action')!;
+const gameMenu = document.querySelector<HTMLButtonElement>('#game-menu')!;
 const gamePanel = document.querySelector<HTMLElement>('#game')!;
 const gameClock = document.querySelector<HTMLElement>('#game-clock')!;
 const gameScore = document.querySelector<HTMLElement>('#game-score')!;
@@ -24,7 +34,10 @@ function showFailure(message: string) {
   statusMessage.textContent = message;
   motion.hidden = true;
   play.hidden = true;
+  story.hidden = true;
+  briefing.hidden = true;
   gameAction.hidden = true;
+  gameMenu.hidden = true;
   gamePanel.hidden = true;
   cancelled = true;
   preview?.dispose();
@@ -63,6 +76,11 @@ function showHud(hud: GameHud) {
   setText(gameClock, `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
   setText(gameScore, `${hud.lights} / ${hud.total} lights`);
   gameScore.dataset.collecting = String(hud.collecting);
+  missionTarget.hidden = hud.target === null;
+  if (hud.target !== null) setText(missionTarget, `Target ${hud.target}`);
+  missionResult.hidden = !hud.result;
+  gameMenu.hidden = !hud.result;
+  setText(missionResult, hud.result);
   setText(gameHint, hud.hint);
   setText(gameAction, hud.action);
   const underground = hud.phase.startsWith('tunnel');
@@ -71,25 +89,59 @@ function showHud(hud: GameHud) {
   if (canvas.getAttribute('aria-label') !== playfield) canvas.setAttribute('aria-label', playfield);
 }
 
-play.onclick = async () => {
+async function startGame(mission?: GeneratedMission) {
   play.disabled = true;
+  missionStart.disabled = true;
   try {
     const { createGame } = await import('./game/play');
     if (!preview) return;
-    game = createGame(canvas, reducedMotion.matches, showHud, () => preview?.redraw());
+    game = createGame(canvas, reducedMotion.matches, showHud, () => preview?.redraw(), { mission });
     gamePanel.hidden = false;
     gameAction.hidden = false;
     play.hidden = true;
+    story.hidden = true;
+    briefing.hidden = true;
     motion.hidden = true;
     shell.dataset.playing = 'true';
     canvas.tabIndex = 0;
     canvas.focus({ preventScroll: true });
     preview.show(game);
+    game.startClock();
   } catch {
     showFailure('The clearing could not start. Reload the preview to try again.');
   }
+}
+play.onclick = () => void startGame();
+story.onclick = () => {
+  briefing.hidden = false;
+  setText(briefDetail, 'Collect 25 of 36 lights across three tunnels. You have 90 seconds of active time.');
+  missionStart.focus();
 };
+briefBack.onclick = () => {
+  briefing.hidden = true;
+  story.focus();
+};
+missionStart.onclick = () => void startGame(P07_MISSION);
 gameAction.onclick = () => game?.action();
+gameMenu.onclick = () => {
+  if (!preview) return;
+  game = undefined;
+  gamePanel.hidden = true;
+  gameAction.hidden = true;
+  gameMenu.hidden = true;
+  delete shell.dataset.playing;
+  canvas.removeAttribute('tabindex');
+  canvas.setAttribute('aria-label', 'A golden firefly hovering among reeds in a blue-green clearing');
+  setText(sceneTitle, 'Forest clearing');
+  play.disabled = false;
+  missionStart.disabled = false;
+  play.hidden = false;
+  story.hidden = false;
+  motion.hidden = false;
+  preview.showIntro();
+  setPaused(reducedMotion.matches);
+  story.focus();
+};
 
 async function start() {
   try {
@@ -107,6 +159,7 @@ async function start() {
     statusMessage.textContent = 'Forest clearing ready.';
     motion.hidden = false;
     play.hidden = false;
+    story.hidden = false;
   } catch {
     showFailure('The scene could not start. Check your connection and reload the preview.');
   }

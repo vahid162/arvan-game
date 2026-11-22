@@ -112,6 +112,32 @@ h2 { font-size: clamp(1.75rem, 3.6vw, 3.1rem); letter-spacing: -.045em; }
   font-variant-numeric: tabular-nums;
 }
 #game-score[data-collecting="true"] { color: var(--gold); }
+#mission-result {
+  position: absolute;
+  inset: 36% 1rem auto;
+  margin: 0 auto;
+  width: fit-content;
+  padding: .65rem 1rem;
+  background: #101916ed;
+  border: 1px solid #68796ba3;
+  border-radius: .55rem;
+  text-align: center;
+}
+.game-card {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(90%, 24rem);
+  padding: 1.35rem;
+  background: #101916f5;
+  border: 1px solid #68796ba3;
+  border-radius: .75rem;
+}
+.game-card button {
+  min-height: 3rem;
+  margin: .2rem .3rem .2rem 0;
+  padding: .5rem .8rem;
+}
 #game-hint {
   inset: auto .8rem .8rem;
   max-width: 27rem;

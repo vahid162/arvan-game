@@ -10,8 +10,17 @@ import type { Anchor } from '../core/types';
 import { makeFirefly } from './scene';
 
 interface Bounds { halfWidth: number; halfDepth: number }
-interface ExplorationOptions { entry: Anchor & { radius: number }; bounds: Bounds }
-interface ExplorationFrame { position: Anchor; ready: boolean; used: boolean; elapsedSeconds: number; reducedMotion: boolean }
+type Entrance = Anchor & { radius: number };
+interface ExplorationOptions { entry: Entrance; entries?: readonly (Entrance & { id: string })[]; bounds: Bounds }
+interface ExplorationFrame {
+  position: Anchor;
+  ready?: boolean;
+  used?: boolean;
+  readyId?: string | null;
+  consumedIds?: ReadonlySet<string>;
+  elapsedSeconds: number;
+  reducedMotion: boolean;
+}
 
 /** Fit the near ground corners even in portrait. +X projects right; −Z projects toward the far grove. */
 export function frameExplorationCamera(camera: PerspectiveCamera, bounds: Bounds, aspect: number) {
@@ -98,7 +107,37 @@ function makeInwardCues(radius: number) {
   return new Mesh(geometry, new MeshBasicMaterial({ color: 0xffe398, side: DoubleSide }));
 }
 
-export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
+function makeEntrance(anchor: Entrance, id?: string) {
+  const group = new Group();
+  group.position.set(anchor.x, 0, anchor.z);
+  const pit = new Mesh(new CircleGeometry(anchor.radius, 64), new MeshBasicMaterial({ color: 0x081819 }));
+  pit.rotation.x = -Math.PI / 2;
+  pit.position.y = 0.008;
+  const rim = new Mesh(new RingGeometry(anchor.radius - 0.021, anchor.radius + 0.021, 64),
+    new MeshBasicMaterial({ color: 0x769c88, transparent: true, depthWrite: false }));
+  rim.rotation.x = -Math.PI / 2;
+  rim.position.y = 0.018;
+  const cues = makeInwardCues(anchor.radius);
+  group.add(pit, rim, cues);
+
+  const closed = new Group();
+  if (id !== undefined) {
+    // Crossed wooden slats cover a consumed entrance and disappear with the pit when it opens.
+    const slat = new PlaneGeometry(anchor.radius * 1.56, anchor.radius * 0.22);
+    const wood = new MeshBasicMaterial({ color: 0xb3a787 });
+    for (const angle of [-Math.PI / 4, Math.PI / 4]) {
+      const bar = new Mesh(slat, wood);
+      bar.rotation.z = angle;
+      closed.add(bar);
+    }
+    closed.position.z = 0.02;
+    closed.visible = false;
+    pit.add(closed);
+  }
+  return { anchor, id, group, pit, rim, cues, closed };
+}
+
+export function createExplorationWorld({ entry, entries, bounds }: ExplorationOptions) {
   const scene = new Scene();
   scene.background = new Color(0x10292e);
   scene.fog = new FogExp2(0x173737, 0.038);
@@ -138,18 +177,8 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  const entryMarker = new Group();
-  entryMarker.position.set(entry.x, 0, entry.z);
-  const pit = new Mesh(new CircleGeometry(entry.radius, 64), new MeshBasicMaterial({ color: 0x081819 }));
-  pit.rotation.x = -Math.PI / 2;
-  pit.position.y = 0.008;
-  const rim = new Mesh(new RingGeometry(entry.radius - 0.021, entry.radius + 0.021, 64),
-    new MeshBasicMaterial({ color: 0x769c88, transparent: true, depthWrite: false }));
-  rim.rotation.x = -Math.PI / 2;
-  rim.position.y = 0.018;
-  const cues = makeInwardCues(entry.radius);
-  entryMarker.add(pit, rim, cues);
-  scene.add(entryMarker);
+  const entrances = entries ? entries.map(anchor => makeEntrance(anchor, anchor.id)) : [makeEntrance(entry)];
+  for (const entrance of entrances) scene.add(entrance.group);
 
   const { fly, wings } = makeFirefly();
   fly.scale.setScalar(0.56);
@@ -167,7 +196,7 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
     return { x: hit.x, z: hit.z };
   }
 
-  function update({ position, ready, used, elapsedSeconds, reducedMotion }: ExplorationFrame) {
+  function update({ position, ready, used, readyId, consumedIds, elapsedSeconds, reducedMotion }: ExplorationFrame) {
     const t = reducedMotion ? 0 : elapsedSeconds;
     lightAt.set(position.x, position.z);
     fly.position.set(position.x, 0.57 + 0.036 * Math.sin(t * 2.4), position.z);
@@ -175,11 +204,18 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
     fly.rotateZ(0.033 * Math.sin(t * 1.55));
     for (const { wing, angle } of wings) wing.rotation.z = angle + Math.sin(t * 6.2) * 0.075;
     marker.position.set(position.x, 0.035, position.z);
-    const visibility = 1 - MathUtils.smoothstep(Math.hypot(position.x - entry.x, position.z - entry.z), 0.75, 1.86);
-    entryMarker.visible = visibility > 0;
-    rim.material.opacity = (used ? 0.35 : 1) * visibility;
-    rim.material.color.setHex(ready && !used ? 0xffdc85 : 0x8fb5a1);
-    cues.visible = ready && !used;
+    for (const entrance of entrances) {
+      const { anchor, group, rim, cues, closed, id } = entrance;
+      const distance = Math.hypot(position.x - anchor.x, position.z - anchor.z);
+      const visibility = 1 - MathUtils.smoothstep(distance, 0.75, 1.86);
+      const taken = consumedIds && id !== undefined ? consumedIds.has(id) : !!used && entrance === entrances[0];
+      const active = readyId !== undefined ? readyId === id : !!ready && entrance === entrances[0];
+      group.visible = visibility > 0;
+      rim.material.opacity = (taken ? 0.35 : 1) * visibility;
+      rim.material.color.setHex(active && !taken ? 0xffdc85 : 0x8fb5a1);
+      cues.visible = active && !taken;
+      closed.visible = taken && entrances.length > 1;
+    }
   }
 
   function resize(aspect: number) {
@@ -187,8 +223,13 @@ export function createExplorationWorld({ entry, bounds }: ExplorationOptions) {
   }
 
   function setAperture(anchor: Anchor | null) {
-    aperture.set(anchor?.x ?? 0, anchor?.z ?? 0, anchor ? entry.radius : 0);
-    pit.visible = !anchor;
+    let radius = entry.radius;
+    for (const entrance of entrances) {
+      const open = anchor?.x === entrance.anchor.x && anchor?.z === entrance.anchor.z;
+      entrance.pit.visible = !open;
+      if (open) radius = entrance.anchor.radius;
+    }
+    aperture.set(anchor?.x ?? 0, anchor?.z ?? 0, anchor ? radius : 0);
     marker.visible = !anchor;
   }
 
