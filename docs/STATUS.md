@@ -1,6 +1,10 @@
 # Light Hunt development status
 
-**P11-B · READY_FOR_REVIEW** — the final Persian-first theme is ready for owner review. Settings saves the player’s language choice, and `?lang=en` opens one English visit. [Play the game](../README.md#developer-setup)
+**P12 · BLOCKED on physical-phone acceptance** — local hardening covers connection checks, interrupted play and WebGL recovery. The 30 FPS target still needs named Android Chrome and iPhone Safari sessions. [P12 evidence](#p12-hardening)
+
+**P13 · BLOCKED on staging** — the local release candidate is built from `52ecef5`. Live staging needs P12 device evidence, the P02 provider probe and authorization for the named target. [Release preparation](#p13-and-p14-release-preparation)
+
+**P11-B · COMPLETE** — the owner approved the Persian-first design and presentation at `32ad01a`.
 
 **P11-A · COMPLETE** — the owner approved the difficulty at `1d56887`. The P10 build at `4fa8d16` was the comparison baseline.
 
@@ -8,7 +12,7 @@
 
 **P06 · READY_FOR_REVIEW** — the one-tunnel demo is playable locally. Owner feedback on steering and camera feel and physical-phone verification remain open. [Play the demo](../README.md#developer-setup)
 
-**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. The live probe awaits an approved account, target, asset origin and spending boundary. [Staging probe](../edge/README.md#staging-probe-after-approval)
+**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. The live probe awaits an approved account, target, asset origin, permissions and spending ceiling. [Staging inputs and probe](../edge/README.md#staging-inputs-and-probe)
 
 | Phase | State |
 | --- | --- |
@@ -24,8 +28,11 @@
 | P09 | `COMPLETE` |
 | P10 | `READY_FOR_REVIEW` |
 | P11-A difficulty adjustment | `COMPLETE` |
-| P11-B presentation | `READY_FOR_REVIEW` |
-| P12–P15 | `NOT_STARTED` |
+| P11-B presentation | `COMPLETE` |
+| P12 mobile hardening | `BLOCKED` on physical-device checks |
+| P13 release candidate | `BLOCKED` on staging prerequisites |
+| P14 acceptance | `BLOCKED` on staging and player observation |
+| P15 production | `NOT_STARTED` |
 
 ## P03 checkpoint
 
@@ -100,6 +107,22 @@ Fresh browsers load Persian RTL. A supported URL language takes precedence for t
 Mobile screenshots from the running Persian preview show the [main menu](evidence/persian-theme/menu.png), [mission briefing](evidence/persian-theme/briefing.png) and [active tunnel HUD](evidence/persian-theme/tunnel-hud.png).
 
 The production and local Edge builds, strict TypeScript, lint, 19 profile tests, 36 Edge route tests, and 14 distinct Chromium cases passed. Chromium identified the same-origin font as the source of the Persian menu, briefing and HUD glyphs. The locale checks covered default and visit-only language, saved selection, unsupported-language fallback, and entry-module recovery. Switching language preserved a completed campaign, crystal balance, upgrade, and practice record. The campaign was also replayed through its one-time reward and reload. Checks used emulated mobile portrait and landscape and a desktop viewport. P12 physical-device checks and the live P02 ArvanCloud probe remain open.
+
+## P12 hardening
+
+Story and practice wait for fresh service readiness before starting or retrying. A detected interruption freezes time and collection and clears old input. Play resumes after a valid response and the player's Resume action. Reloading after WebGL loss restores saved progress. Strict TypeScript, lint, 136 unit checks and 36 Edge contract checks passed.
+
+The renderer keeps one animation loop and reuses the drawing buffer on duplicate resize events. Across 60 paired tunnel renders, sampled pixels matched and peak draws fell from 55 to 33. Six create/dispose cycles returned to zero view geometries and shader programs and one shared texture. A five-minute Chromium 159 SwiftShader run at a 716 × 1198 drawing buffer made 14 tunnel returns. Median frame time was 683.3 ms, p95 was 4,016.6 ms and the largest stall was 42.9 seconds on a heavily swapping host. This emulated run missed the 33.3 ms p95 target. Named physical Android Chrome and iPhone Safari checks are `NOT_RUN`.
+
+## P13 and P14 release preparation
+
+The clean source revision is `52ecef532e6391219883068044db655190809c06`. The local candidate uses Node 26.13.1, npm 11.20.0 and the reserved test asset origin. Its browser SHA-256 is `9b9b09ca78d37b8ac0563f6f646efd87310f9526a070a585a717551996eb972b`. Its worker SHA-256 is `40c0bb5c203b850a2e580826eb9d02794ffa58252cc5aba776bd5b890f03094f`. The release manifest binds both to the source and lockfile. [Build, staging and rollback instructions](../edge/README.md)
+
+All 42 Chromium checks passed on the exact candidate using `playwright test --config playwright.edge.config.ts`. They exercised the complete campaign, profile reload, the one-time guardian reward, purchases, practice and language along with input, network and graphics recovery. The local preview serves the archived entry and a non-cacheable health response at port 4189.
+
+An independent offline install and clean rebuild reproduced both artifact directories byte for byte. In a local worker rehearsal, the candidate and recovery workers both served the eight distinct old and new JavaScript paths with the expected SHA-256 digests. Recovery restored the approved P11 entry. Both browser releases share the same save code and schema. Live provider execution, HTTPS delivery and staging rollback still need evidence from the authorized target.
+
+For P14, rerun the acceptance catalog against the exact hosted candidate. Record desktop and physical mobile sessions and owner-authorized player observations for learning the controls, understanding failure, retrying, camera comfort, upgrades and the restoration payoff. Keep anonymous notes and use adult supervision for children. The hosted and player checks are `NOT_RUN`. [Acceptance catalog](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#f-acceptance-catalog-and-requirement-traceability)
 
 ## P02 evidence
 
