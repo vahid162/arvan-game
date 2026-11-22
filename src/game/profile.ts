@@ -97,7 +97,12 @@ function decode(raw: string | null): { profile: Profile; status: ProfileStatus }
       if (typeof value.version === 'number' && Number.isInteger(value.version) && value.version > 1) {
         return { profile: freshProfile(), status: 'future' };
       }
-      if (validProfile(value)) return { profile: value as unknown as Profile, status: 'durable' };
+      if (validProfile(value)) {
+        const settings = value.settings as Record<string, unknown>;
+        // Earlier v1 builds ignored additional preference fields.
+        if (settings.language !== 'fa' && settings.language !== 'en') delete settings.language;
+        return { profile: value as unknown as Profile, status: 'durable' };
+      }
     }
   } catch {
     // Keep the original record available for recovery.
@@ -166,10 +171,13 @@ export async function openProfile(): Promise<ProfileStore> {
         } else if (key === 'sensitivity') {
           // Older v1 profiles accepted any positive finite sensitivity.
           if (value !== previous.sensitivity && value !== 0.75 && value !== 1 && value !== 1.25) return false;
+        } else if (key === 'language') {
+          if (value !== 'fa' && value !== 'en') return false;
         } else return false;
       }
       const settings = { ...previous, ...changes };
-      if (settings.sound !== previous.sound || settings.reducedMotion !== previous.reducedMotion || settings.sensitivity !== previous.sensitivity) {
+      if (settings.sound !== previous.sound || settings.reducedMotion !== previous.reducedMotion ||
+          settings.sensitivity !== previous.sensitivity || settings.language !== previous.language) {
         commit({ ...profile, settings });
       }
       return true;

@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Select **Play story** and **Start mission**. Each mission gives you 90 seconds of active time to collect 22, 25, or 28 lights from three tunnels.
+Open the local URL printed by Vite. New players start in Persian. Add `?lang=en` to try the English interface, then select **Play story** and **Start mission**. Each mission gives you 90 seconds of active time to collect 22, 25, or 28 lights from three tunnels.
 
 1. Hold and drag to guide the firefly, or move with the arrow keys. Sweep the far side of the clearing to reveal the three openings.
 2. Release when the amber ring and inward arrows appear. With a keyboard, press Space.
@@ -19,7 +19,7 @@ Open the local URL printed by Vite. Select **Play story** and **Start mission**.
 4. Use **Pause**, Escape, or **Try again** as needed. A retry keeps the same layout. After each win, continue to the next mission to restore more of the forest.
 5. After the third win, return to the clearing. Spend your 12 crystals on a wider exploration light (8) or a wider collection radius (10). **Practice** replays any completed mission with your equipment and saves a separate best score.
 
-**Start exploring · Tutorial** teaches the controls in an untimed tunnel. Open **Settings** to change sound, reduced motion, or mouse and touch steering sensitivity. English is the default, and the **فارسی** link opens the Persian right-to-left interface. The game needs WebGL 2. Reopen the same address in the same browser profile to continue your saved forest.
+**Start exploring · Tutorial** teaches the controls in an untimed tunnel. Open **Settings** to save your language, sound, reduced motion, or mouse and touch steering preference. The game needs WebGL 2. Reopen the same address in the same browser profile to continue your saved forest.
 
 ## Build and verify
 

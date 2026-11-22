@@ -14,7 +14,7 @@ test('menu dialogs isolate pointer and keyboard input and return to the selected
       [definition.id, { seed, generatorVersion, contentVersion, manifestHash }])),
   };
   await page.addInitScript(({ key, raw }) => localStorage.setItem(key, raw), { key: PROFILE_KEY, raw: JSON.stringify(save) });
-  await page.goto('/');
+  await page.goto('/?lang=en');
   const settings = page.locator('#settings');
   await expect(settings).toBeVisible();
   const play = page.locator('#play');
@@ -79,7 +79,7 @@ test('settings survive reload, and a muted tutorial still shows collected lights
       },
     });
   }, PROFILE_KEY);
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await expect(page.locator('#shell')).toHaveAttribute('data-reduced-motion', 'false');
   await page.getByRole('button', { name: 'Pause motion', exact: true }).click();
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -134,7 +134,7 @@ test('Persian RTL presentation keeps the briefing and HUD readable in landscape 
   await page.setViewportSize({ width: 320, height: 640 });
   await expect(page.locator('#game-score')).toHaveText('۰ از ۳۶ نور');
   await expect(page.locator('#mission-target')).toHaveText('هدف ۲۲');
-  await expect(page.locator('#game-clock')).toHaveText('1:30');
+  await expect(page.locator('#game-clock')).toHaveText('۱:۳۰');
   const screen = await page.evaluate(() => ({ width: innerWidth, content: document.documentElement.scrollWidth }));
   expect(screen.content).toBe(screen.width);
 });
@@ -157,7 +157,7 @@ test('the first deliberate control unlocks audio for a deadline in the clearing'
       },
     });
   });
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await page.getByRole('button', { name: 'Play story', exact: true }).click();
   await page.getByRole('button', { name: 'Start mission', exact: true }).click();
   await storyPhase(page, 'explore');

@@ -1,6 +1,6 @@
 # Light Hunt development status
 
-**P11-B · READY_FOR_REVIEW** — the final UI/UX pass is ready for owner review. English remains the default, and Settings links to Persian. [Play the game](../README.md#developer-setup)
+**P11-B · READY_FOR_REVIEW** — the final Persian-first theme is ready for owner review. Settings saves the player’s language choice, and `?lang=en` opens one English visit. [Play the game](../README.md#developer-setup)
 
 **P11-A · COMPLETE** — the owner approved the difficulty at `1d56887`. The P10 build at `4fa8d16` was the comparison baseline.
 
@@ -92,6 +92,14 @@ The production build, strict TypeScript, lint and 14 focused Chromium cases pass
 | Failure and retry | [Before](evidence/p11-ux/failed-320-before.png) | [After](evidence/p11-ux/failed-320-after.png) |
 | Guardian reward | [Before](evidence/p11-ux/guardian-reward-320-before.png) | [After](evidence/p11-ux/guardian-reward-320-after.png) |
 | Shop after purchase | [Before](evidence/p11-ux/shop-owned-320-before.png) | [After](evidence/p11-ux/shop-owned-320-after.png) |
+
+## Persian-first refinement
+
+Fresh browsers load Persian RTL. A supported URL language takes precedence for that visit, and Settings saves an explicit language choice with the existing v1 profile. Added one 111,152-byte Vazirmatn v33.003 WOFF2 with its upstream OFL notice. A rendered desktop and mobile review of ChildXDesign informed the periwinkle surround, mint and gold controls, and rounded goal cards. The forest canvas and game rules retain their approved behavior. [ChildXDesign reference](https://childxdesign.com/) · [Vazirmatn release](https://github.com/rastikerdar/vazirmatn/releases/tag/v33.003)
+
+Mobile screenshots from the running Persian preview show the [main menu](evidence/persian-theme/menu.png), [mission briefing](evidence/persian-theme/briefing.png) and [active tunnel HUD](evidence/persian-theme/tunnel-hud.png).
+
+The production and local Edge builds, strict TypeScript, lint, 19 profile tests, 36 Edge route tests, and 14 distinct Chromium cases passed. Chromium identified the same-origin font as the source of the Persian menu, briefing and HUD glyphs. The locale checks covered default and visit-only language, saved selection, unsupported-language fallback, and entry-module recovery. Switching language preserved a completed campaign, crystal balance, upgrade, and practice record. The campaign was also replayed through its one-time reward and reload. Checks used emulated mobile portrait and landscape and a desktop viewport. P12 physical-device checks and the live P02 ArvanCloud probe remain open.
 
 ## P02 evidence
 

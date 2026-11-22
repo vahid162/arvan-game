@@ -6,12 +6,14 @@ const origin = 'https://assets.example.test';
 const script = '/assets/shell-19fcfa07.js';
 const stylesheet = '/assets/styles-47c281de.css';
 const texture = '/assets/firefly-8ac4d102.png';
+const font = '/assets/Vazirmatn-82a73d81.woff2';
 const notices = '/THIRD-PARTY-NOTICES.txt';
 const html = `<!doctype html><title>Light Hunt</title><script type="module" src="${script}"></script>`;
 const assets = {
   [script]: 'text/javascript; charset=utf-8',
   [stylesheet]: 'text/css; charset=utf-8',
   [texture]: 'image/png',
+  [font]: 'font/woff2',
   [notices]: 'text/plain; charset=utf-8',
 };
 
@@ -33,13 +35,14 @@ function cacheDirectives(response: Response) {
 }
 
 describe('Edge entry and health', () => {
-  it.each(['/', '/health'])('serves %s locally with equivalent GET and HEAD headers', async path => {
+  it.each(['/', '/?lang=fa', '/?lang=en', '/?lang=de', '/health'])('serves %s locally with equivalent GET and HEAD headers', async path => {
     const { handle, fetchAsset } = fixture();
     const get = await handle(request(path));
     expect(get.status).toBe(200);
-    expect(cacheDirectives(get)).toContain(path === '/' ? 'no-cache' : 'no-store');
+    const entry = path !== '/health';
+    expect(cacheDirectives(get)).toContain(entry ? 'no-cache' : 'no-store');
     const body = await get.text();
-    if (path === '/') {
+    if (entry) {
       expect(get.headers.get('content-type')).toMatch(/^text\/html\b/i);
       expect(body).toBe(html);
     } else {
@@ -99,26 +102,28 @@ describe('assets from the release manifest', () => {
     expect(await result.text()).toBe(css);
   });
 
-  it('preserves texture bytes and uses HEAD upstream for a metadata-only request', async () => {
-    const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  it.each([
+    { path: texture, type: 'image/png', bytes: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]) },
+    { path: font, type: 'font/woff2', bytes: new Uint8Array([119, 79, 70, 50, 0, 1, 0, 0]) },
+  ])('preserves $type bytes and uses HEAD upstream for a metadata-only request', async ({ path, type, bytes }) => {
     const { handle, fetchAsset } = fixture(async (input, init) => {
       const sent = new Request(input, init);
-      return new Response(sent.method === 'HEAD' ? null : bytes, { headers: { 'Content-Type': 'IMAGE/PNG' } });
+      return new Response(sent.method === 'HEAD' ? null : bytes, { headers: { 'Content-Type': type.toUpperCase() } });
     });
-    const get = await handle(request(texture));
+    const get = await handle(request(path));
     expect(get.status).toBe(200);
-    expect(get.headers.get('content-type')).toBe('image/png');
+    expect(get.headers.get('content-type')).toBe(type);
     expect(cacheDirectives(get)).toContain('immutable');
     expect(new Uint8Array(await get.arrayBuffer())).toEqual(bytes);
 
-    const head = await handle(request(texture, 'HEAD'));
+    const head = await handle(request(path, 'HEAD'));
     expect(head.status).toBe(200);
     expect(head.headers.get('content-type')).toBe(get.headers.get('content-type'));
     expect(head.headers.get('cache-control')).toBe(get.headers.get('cache-control'));
     expect(head.body).toBeNull();
     expect(fetchAsset).toHaveBeenCalledTimes(2);
     const sent = new Request(...fetchAsset.mock.calls[1]!);
-    expect(sent.url).toBe(origin + texture);
+    expect(sent.url).toBe(origin + path);
     expect(sent.method).toBe('HEAD');
     expect(sent.redirect).toBe('manual');
   });
@@ -140,6 +145,9 @@ describe('route and origin boundaries', () => {
     ['/unpublished.html', 404],
     [script + '?origin=https://alternate.example.test', 400],
     ['/?preview=yes', 400],
+    ['/?lang=en&lang=fa', 400],
+    ['/?lang=fa&preview=yes', 400],
+    ['/health?lang=en', 400],
     ['/health?format=html', 400],
   ] as const)('rejects %s without contacting storage', async (path, status) => {
     const { handle, fetchAsset } = fixture();

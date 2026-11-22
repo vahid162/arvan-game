@@ -24,7 +24,7 @@ async function expectProgress(page: Page, completed: string[], pending: string |
 
 async function beginFirst(page: Page) {
   await freezeStoryClock(page);
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await page.getByRole('button', { name: 'Play story', exact: true }).click();
   await startBriefedMission(page, campaign[0]!);
 }
@@ -92,7 +92,7 @@ test('a second tab cannot edit the profile and closing its owner releases the wr
   const original = await rawSave(page);
   expect(original).not.toBeNull();
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/?lang=en');
   await expect(second.locator('#profile-notice')).toContainText(/another tab|other tab/i);
   await expect(second.getByRole('button', { name: /story/i })).toBeDisabled();
   expect(await rawSave(second)).toBe(original);
@@ -110,7 +110,7 @@ for (const [description, raw] of [
     await page.addInitScript(({ key, value }) => {
       if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
     }, { key: profileKey, value: raw });
-    await page.goto('/');
+    await page.goto('/?lang=en');
     const notice = page.locator('#profile-notice');
     await expect(notice).toBeVisible();
     await expect(notice).toContainText(/save|profile|storage/i);

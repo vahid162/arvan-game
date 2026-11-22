@@ -1,3 +1,5 @@
+import type { Language } from '../game/core/types';
+
 const copy = {
   title: ['Light Hunt', 'شکار نور'],
   loading: ['Loading the clearing…', 'در حال آماده‌سازی جنگل…'],
@@ -13,7 +15,7 @@ const copy = {
   tunnelField: ['Tunnel playfield', 'محیط بازی تونل'],
   clearing: ['Forest clearing', 'محوطهٔ جنگل'],
   underground: ['Under the forest', 'زیر جنگل'],
-  startExploring: ['Start exploring · Tutorial', 'شروع گشت‌وگذار · آموزش'],
+  startExploring: ['Start exploring · Tutorial', 'آموزش بازی'],
   tutorial: ['Tutorial', 'آموزش'],
   playStory: ['Play story', 'شروع داستان'],
   continueStory: ['Continue story', 'ادامهٔ داستان'],
@@ -31,7 +33,6 @@ const copy = {
   quick: ['Quick', 'زیاد'],
   customSensitivity: ['Saved ({0}×)', 'ذخیره‌شده ({0}×)'],
   language: ['Language', 'زبان'],
-  otherLanguage: ['فارسی', 'English'],
   localSave: ['Progress saves in this browser.', 'پیشرفت شما در همین مرورگر ذخیره می‌شود.'],
   pauseMotion: ['Pause motion', 'توقف حرکت'],
   resumeMotion: ['Resume motion', 'ادامهٔ حرکت'],
@@ -66,10 +67,10 @@ const copy = {
   crystals: ['{0} crystals', '{0} بلور'],
   progress: ['Forest restored: {0} / 3 · {1} crystals', 'بخش‌های روشن جنگل: {0} از ۳ · {1} بلور'],
   restored: ['Forest restored', 'جنگل دوباره روشن شد'],
-  savedForest: ['The guardian’s torch is steady. Your crystals stay with your local forest.', 'مشعل نگهبان روشن مانده است. بلورهایتان در جنگل ذخیره می‌شوند.'],
+  savedForest: ['The guardian’s torch is steady. Your crystals stay with your local forest.', 'مشعل نگهبان روشن مانده و بلورهایی که به دست آورده‌اید مال شماست.'],
   elixirDelivered: ['Elixir delivered', 'اکسیر تحویل داده شد'],
-  firstElixir: ['The guardian took the first elixir. Light now reaches the near bank.', 'نگهبان اکسیر اول را گرفت. نور به کنارهٔ نزدیک رسیده است.'],
-  secondElixir: ['The guardian took the second elixir. Light spreads deeper into the forest.', 'نگهبان اکسیر دوم را گرفت. نور در دل جنگل می‌گسترد.'],
+  firstElixir: ['The guardian took the first elixir. Light now reaches the near bank.', 'نگهبان اولین اکسیر را گرفت. حالا کنارهٔ آب هم روشن است.'],
+  secondElixir: ['The guardian took the second elixir. Light spreads deeper into the forest.', 'نگهبان دومین اکسیر را گرفت. حالا نور به دل جنگل هم می‌رسد.'],
   thirdElixir: ['The third elixir steadied the guardian’s torch. The restored forest earned you 12 crystals.', 'اکسیر سوم مشعل نگهبان را روشن نگه داشت. برای روشن کردن جنگل ۱۲ بلور گرفتید.'],
   rewardLimit: ['The guardian’s reward buys one upgrade.', 'با پاداش نگهبان می‌توانید یک ارتقا بخرید.'],
   explorationRadius: ['Exploration light radius', 'شعاع نور جست‌وجو'],
@@ -83,7 +84,7 @@ const copy = {
   alreadyOwned: ['You already own this upgrade.', 'این ارتقا را دارید.'],
   insufficient: ['You need more crystals.', 'بلور بیشتری لازم دارید.'],
   shopUnavailable: ['The shop is unavailable in this tab.', 'فروشگاه در این زبانه در دسترس نیست.'],
-  busySave: ['Another tab has the forest open. Story progress is read-only here.', 'جنگل در زبانهٔ دیگری باز است. اینجا پیشرفت داستان فقط خواندنی است.'],
+  busySave: ['Another tab has the forest open. Story progress is read-only here.', 'بازی در زبانهٔ دیگری باز است. برای ادامهٔ داستان به همان زبانه برگردید.'],
   corruptSave: ['The forest save could not be read. The saved data is still here.', 'داده‌های ذخیره‌شده خوانده نشدند و همچنان در مرورگر هستند.'],
   futureSave: ['This save belongs to a newer version of Light Hunt. The saved data is still here.', 'این ذخیره برای نسخهٔ جدیدتر شکار نور است و داده‌ها همچنان در مرورگر هستند.'],
   unavailableSave: ['This browser cannot access safe local saving.', 'ذخیرهٔ امن در این مرورگر در دسترس نیست.'],
@@ -104,7 +105,7 @@ const copy = {
   invalidRelease: ['Whoops! Release over an opening when its ring appears.', 'وقتی حلقهٔ دهانه پیدا شد، روی آن رها کنید.'],
   exploreHint: ['Hold and drag, or use the arrow keys. Look for an opening in the clearing.', 'نگه دارید و بکشید، یا از کلیدهای جهت استفاده کنید. یک دهانه در محوطه پیدا کنید.'],
   tutorialExplore: ['Take your time. Drag or use the arrow keys to find the opening.', 'عجله‌ای نیست. با کشیدن یا کلیدهای جهت دهانه را پیدا کنید.'],
-  tutorialReady: ['Touch again, move the mouse, or press Left or Right to start.', 'برای شروع دوباره لمس کنید، ماوس را حرکت دهید یا کلید چپ یا راست را بزنید.'],
+  tutorialReady: ['Touch again, move the mouse, or press Left or Right to start.', 'برای شروع، دوباره صفحه را لمس کنید، ماوس را حرکت دهید یا یکی از کلیدهای چپ و راست را بزنید.'],
   tutorialSteer: ['Steer left and right toward the lights. Lifting your finger keeps you moving.', 'به چپ و راست به سوی نورها بروید. با برداشتن انگشت، حرکت ادامه دارد.'],
   tutorialSummary: ['You caught {0} of {1} lights. In story missions, reach the light target in 90 active seconds.', 'از {1} نور، {0} نور گرفتید. در داستان، در ۹۰ ثانیهٔ فعال به هدف جمع‌آوری نور برسید.'],
   tutorialComplete: ['Tutorial complete', 'آموزش تمام شد'],
@@ -114,14 +115,27 @@ const copy = {
   practiceFailed: ['Practice failed', 'تمرین ناموفق بود'],
 } as const;
 
-export const language = new URLSearchParams(globalThis.location?.search).get('lang') === 'fa' ? 'fa' : 'en';
-const number = new Intl.NumberFormat(language, { useGrouping: false });
-
 export type CopyKey = keyof typeof copy;
+
+let language: Language = 'fa';
+const numbers = { fa: new Intl.NumberFormat('fa', { useGrouping: false }), en: new Intl.NumberFormat('en', { useGrouping: false }) };
+const seconds = { fa: new Intl.NumberFormat('fa', { minimumIntegerDigits: 2 }), en: new Intl.NumberFormat('en', { minimumIntegerDigits: 2 }) };
+
+export function resolveLanguage(requested: string | null, saved?: Language): Language {
+  return requested === 'fa' || requested === 'en' ? requested : saved ?? 'fa';
+}
+
+export function setLanguage(value: Language) {
+  language = value;
+}
+
+export function formatClock(totalSeconds: number): string {
+  return numbers[language].format(Math.floor(totalSeconds / 60)) + ':' + seconds[language].format(totalSeconds % 60);
+}
 
 export function t(key: CopyKey, ...values: (string | number)[]): string {
   return copy[key][language === 'fa' ? 1 : 0].replace(/\{(\d+)\}/g, (_, index: string) => {
     const value = values[Number(index)];
-    return typeof value === 'number' ? number.format(value) : value ?? '';
+    return typeof value === 'number' ? numbers[language].format(value) : value ?? '';
   });
 }

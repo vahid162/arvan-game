@@ -39,7 +39,7 @@ async function rideOuterLane(page: Page, tunnel: TunnelInstance) {
 
 test.beforeEach(async ({ page }) => {
   await freezeStoryClock(page);
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await page.getByRole('button', { name: 'Play story' }).click();
   await expect(page.getByRole('heading', { name: 'Mission 1 of 3', exact: true })).toBeVisible();
   await startBriefedMission(page, openingMission);

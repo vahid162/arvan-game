@@ -36,7 +36,7 @@ async function capture(page: Page, milestone: 'P05' | 'P06', name: string) {
 }
 
 async function openGame(page: Page) {
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await page.getByRole('button', { name: 'Start exploring' }).click();
   await phase(page, 'explore');
 }
@@ -62,7 +62,7 @@ async function score(page: Page) {
 test('the keyboard tutorial can be completed after a long wait without changing a saved story', async ({ page }) => {
   test.setTimeout(75_000);
   await freezeClock(page);
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await page.getByRole('button', { name: 'Play story', exact: true }).click();
   await page.getByRole('button', { name: 'Start mission', exact: true }).click();
   await phase(page, 'explore');

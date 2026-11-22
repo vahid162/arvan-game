@@ -1,9 +1,9 @@
 import type { Preview } from './game/render/preview';
 import type { GameHud, GameView } from './game/play';
-import type { AttemptMode, GeneratedMission, Profile, UpgradeId } from './game/core/types';
+import type { AttemptMode, GeneratedMission, Language, Profile, UpgradeId } from './game/core/types';
 import { FOREST_MISSIONS, UPGRADES } from './game/content/fixtures';
 import { openProfile, type ProfileStore } from './game/profile';
-import { language, t, type CopyKey } from './ui/copy';
+import { formatClock, resolveLanguage, setLanguage, t, type CopyKey } from './ui/copy';
 
 const shell = document.querySelector<HTMLElement>('#shell')!;
 const canvas = document.querySelector<HTMLCanvasElement>('#glade')!;
@@ -56,7 +56,7 @@ const settingSound = document.querySelector<HTMLInputElement>('#setting-sound')!
 const settingMotion = document.querySelector<HTMLInputElement>('#setting-motion')!;
 const settingSensitivity = document.querySelector<HTMLSelectElement>('#setting-sensitivity')!;
 const systemMotion = document.querySelector<HTMLElement>('#system-motion')!;
-const languageSwitch = document.querySelector<HTMLAnchorElement>('#language-switch')!;
+const languageSwitch = document.querySelector<HTMLSelectElement>('#language-switch')!;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const panelBackButtons = [[briefing, briefBack], [shopPanel, shopBack], [practicePanel, practiceBack], [settingsPanel, settingsBack]] as const;
 
@@ -75,20 +75,27 @@ let previewPausedByPlayer = false;
 let preferences: Profile['settings'] = { sound: true, reducedMotion: false, sensitivity: 1 };
 const missionIndices = [0, 1, 2] as const;
 
-document.documentElement.lang = language;
-document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
-document.title = t('title');
-for (const element of document.querySelectorAll<HTMLElement>('[data-copy]')) {
-  element.textContent = t(element.dataset.copy as CopyKey);
+const requestedLanguage = new URLSearchParams(location.search).get('lang');
+
+function localizePage(language: Language) {
+  setLanguage(language);
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
+  document.title = t('title');
+  for (const element of document.querySelectorAll<HTMLElement>('[data-copy]')) {
+    setText(element, t(element.dataset.copy as CopyKey));
+  }
+  for (const element of document.querySelectorAll<HTMLElement>('[data-copy-label]')) {
+    element.setAttribute('aria-label', t(element.dataset.copyLabel as CopyKey));
+  }
+  for (const [index, button] of practiceMissions.entries()) setText(button, t('missionNumber', index + 1));
+  const savedSensitivity = settingSensitivity.querySelector<HTMLOptionElement>('[data-saved]');
+  if (savedSensitivity) setText(savedSensitivity, t('customSensitivity', preferences.sensitivity));
+  languageSwitch.value = language;
+  setText(motionLabel, t(motion.dataset.paused === 'true' ? 'resumeMotion' : 'pauseMotion'));
+  if (shell.dataset.state === 'ready') setText(statusMessage, t('ready'));
+  refreshProfile();
 }
-for (const element of document.querySelectorAll<HTMLElement>('[data-copy-label]')) {
-  element.setAttribute('aria-label', t(element.dataset.copyLabel as CopyKey));
-}
-const alternateLanguage = language === 'en' ? 'fa' : 'en';
-const alternateUrl = new URL(location.href);
-alternateUrl.searchParams.set('lang', alternateLanguage);
-languageSwitch.href = alternateUrl.href;
-languageSwitch.lang = alternateLanguage;
 
 window.addEventListener('pageshow', event => {
   if (event.persisted) location.reload();
@@ -218,7 +225,7 @@ function showHud(hud: GameHud) {
   gameClock.dataset.ms = String(Math.round(hud.timeLeftMs));
   gameClock.hidden = hud.tutorial;
   const seconds = Math.ceil(hud.timeLeftMs / 1000);
-  setText(gameClock, `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
+  setText(gameClock, formatClock(seconds));
   setText(gameScore, t('lights', hud.lights, hud.total));
   gameScore.dataset.collecting = String(hud.collecting);
   gameMode.hidden = !hud.tutorial && !practicing;
@@ -410,7 +417,6 @@ practiceBack.onclick = () => {
   practice.focus();
 };
 for (const [index, button] of practiceMissions.entries()) {
-  setText(button, t('missionNumber', index + 1));
   button.onclick = () => {
     if (!profile) return;
     const missionIndex = missionIndices[index];
@@ -433,7 +439,8 @@ for (const [index, button] of practiceMissions.entries()) {
 function updatePreferences(changes: Partial<Profile['settings']>) {
   if (profile?.updateSettings(changes)) preferences = profile.profile.settings;
   else if (profile?.status !== 'durable') preferences = { ...preferences, ...changes };
-  refreshProfile();
+  if (changes.language) localizePage(changes.language);
+  else refreshProfile();
   if (changes.reducedMotion !== undefined) syncMotion();
 }
 
@@ -456,6 +463,16 @@ settingsBack.onclick = () => {
 };
 settingSound.onchange = () => updatePreferences({ sound: settingSound.checked });
 settingMotion.onchange = () => updatePreferences({ reducedMotion: settingMotion.checked });
+languageSwitch.onchange = () => {
+  const choice = languageSwitch.value;
+  if (choice !== 'fa' && choice !== 'en') return;
+  updatePreferences({ language: choice });
+  const url = new URL(location.href);
+  if (url.searchParams.has('lang')) {
+    url.searchParams.set('lang', choice);
+    history.replaceState(history.state, '', url);
+  }
+};
 settingSensitivity.onchange = () => {
   const sensitivity = settingSensitivity.value;
   const saved = settingSensitivity.querySelector<HTMLOptionElement>('[data-saved]');
@@ -532,7 +549,7 @@ async function start() {
       return;
     }
     preferences = profile.profile.settings;
-    refreshProfile();
+    localizePage(resolveLanguage(requestedLanguage, preferences.language));
     if (campaignStep > 0) preview.showForest(campaignStep);
     syncMotion();
     shell.dataset.state = 'ready';
@@ -547,4 +564,5 @@ async function start() {
   }
 }
 
+localizePage(resolveLanguage(requestedLanguage, document.documentElement.lang === 'en' ? 'en' : 'fa'));
 void start();

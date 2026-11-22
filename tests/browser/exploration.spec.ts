@@ -31,7 +31,7 @@ async function capture(page: Page, filename: string) {
 test.beforeEach(async ({ page }) => {
   await page.clock.install({ time: new Date('2026-01-01T12:00:00Z') });
   await page.clock.pauseAt(new Date('2026-01-01T12:01:00Z'));
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await page.getByRole('button', { name: 'Start exploring' }).click();
   await expect(page.locator('#game')).toHaveAttribute('data-phase', 'explore');
 });

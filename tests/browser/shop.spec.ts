@@ -43,7 +43,7 @@ for (const [id, cost, otherCost] of [
   ['collection-radius', 10, 8],
 ] as const) {
   test(`the ${id} purchase costs ${cost}, survives reload and leaves the other level unaffordable`, async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?lang=en');
     await expect(page.getByRole('button', { name: 'Shop', exact: true })).toHaveClass('primary');
     let shop = await openShop(page);
     await expect(page.locator('#shop-balance')).toHaveText('12 crystals');
@@ -67,7 +67,7 @@ for (const [id, cost, otherCost] of [
 test('a purchased level is usable in practice and the best score is the only change to the saved forest', async ({ page }) => {
   test.setTimeout(90_000);
   await freezeStoryClock(page);
-  await page.goto('/');
+  await page.goto('/?lang=en');
   const shop = await openShop(page);
   await shop.getByRole('button', { name: 'Buy for 8 crystals', exact: true }).click();
   await shop.getByRole('button', { name: 'Back', exact: true }).click();

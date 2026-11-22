@@ -377,3 +377,34 @@ it('rejects invalid or competing settings edits atomically and surfaces a write 
   expect(store.updateSettings({ sound: true })).toBe(false);
   busy.close();
 });
+
+it('persists an explicit language choice without rewriting a legacy profile on load or changing its progress', async () => {
+  const raw = JSON.stringify(p10Profile);
+  const host = browser(raw);
+  const store = await openProfile();
+  expect(store.profile.settings.language).toBeUndefined();
+  expect(host.raw()).toBe(raw);
+  const busy = await openProfile();
+  expect(busy.updateSettings({ language: 'en' })).toBe(false);
+  expect(store.updateSettings({ language: 'other' as 'en' })).toBe(false);
+  expect(host.storage.setItem).not.toHaveBeenCalled();
+  expect(store.updateSettings({ language: 'en' })).toBe(true);
+  expect(store.updateSettings({ language: 'en' })).toBe(true);
+  expect(host.storage.setItem).toHaveBeenCalledTimes(1);
+  const reloaded = await host.reopen(store);
+  expect(reloaded.profile).toEqual({ ...p10Profile, settings: { ...p10Profile.settings, language: 'en' } });
+  expect(reloaded.updateSettings({ language: 'fa' })).toBe(true);
+  expect(JSON.parse(host.raw()!)).toEqual({ ...p10Profile, settings: { ...p10Profile.settings, language: 'fa' } });
+  reloaded.close();
+  busy.close();
+});
+
+it('keeps a formerly valid v1 save usable when an extra language field is unsupported', async () => {
+  const raw = JSON.stringify({ ...p10Profile, settings: { ...p10Profile.settings, language: 'de' } });
+  const host = browser(raw);
+  const store = await openProfile();
+  expect(store.status).toBe('durable');
+  expect(store.profile).toEqual(p10Profile);
+  expect(host.raw()).toBe(raw);
+  store.close();
+});

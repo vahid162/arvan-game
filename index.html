@@ -1,13 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="fa" dir="rtl">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#101916">
+    <meta name="theme-color" content="#e3e7f8">
     <link rel="icon" type="image/png" sizes="32x32" href="/src/assets/amber-spark.png?no-inline">
     <link rel="stylesheet" href="/src/shell.css">
-    <title>Light Hunt</title>
+    <title>شکار نور</title>
     <script>
+      // Choose the loading and recovery language even when the entry module cannot run.
+      let bootLanguage = new URLSearchParams(location.search).get('lang');
+      if (bootLanguage !== 'fa' && bootLanguage !== 'en') {
+        try {
+          const saved = JSON.parse(localStorage.getItem('light-hunt.profile.v1'));
+          bootLanguage = saved?.version === 1 ? saved.settings?.language : null;
+        } catch { /* Local saving is optional. */ }
+      }
+      const bootEnglish = bootLanguage === 'en';
+      document.documentElement.lang = bootEnglish ? 'en' : 'fa';
+      document.documentElement.dir = bootEnglish ? 'ltr' : 'rtl';
+      if (bootEnglish) document.title = 'Light Hunt';
       // The entry module cannot report a failed download or parse itself.
       window.addEventListener('error', function (event) {
         const failedDownload = event.target instanceof HTMLScriptElement && event.target.type === 'module';
@@ -19,7 +31,9 @@
           const shell = document.getElementById('shell');
           if (shell.dataset.state !== 'loading') return;
           shell.dataset.state = 'failed';
-          document.getElementById('status').textContent = 'The preview could not load. Check your connection and reload.';
+          document.getElementById('status').textContent = document.documentElement.lang === 'en'
+            ? 'The preview could not load. Check your connection and reload.'
+            : 'بازی بارگذاری نشد. اتصال اینترنت را بررسی کنید و صفحه را دوباره باز کنید.';
         }
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', showEntryFailure, { once: true });
@@ -32,21 +46,21 @@
   <body>
     <main id="shell" data-state="loading">
       <header class="masthead">
-        <h1><span class="brand-spark" aria-hidden="true"></span><span data-copy="title">Light Hunt</span></h1>
+        <h1><span class="brand-spark" aria-hidden="true"></span><span data-copy="title">شکار نور</span></h1>
       </header>
       <figure>
         <div id="viewport">
-          <canvas id="glade" role="img" data-copy-label="introLabel" aria-label="A golden firefly hovering among reeds in a blue-green clearing"></canvas>
+          <canvas id="glade" role="img" data-copy-label="introLabel" aria-label="کرم شب‌تاب طلایی میان نی‌های جنگل"></canvas>
           <div class="notice">
-            <p id="status" data-copy="loading" role="status">Loading the clearing…</p>
-            <a href="" class="retry" data-copy="reload">Reload preview</a>
+            <p id="status" data-copy="loading" role="status">در حال آماده‌سازی جنگل…</p>
+            <a href="" class="retry" data-copy="reload">بارگذاری دوباره</a>
           </div>
           <div id="game" hidden>
             <div class="game-hud">
               <span id="game-mode" hidden></span>
-              <span id="game-score" aria-live="polite">0 lights</span>
+              <span id="game-score" aria-live="polite">۰ نور</span>
               <span id="mission-target" hidden></span>
-              <time id="game-clock" data-copy-label="activeTime" aria-label="Active time remaining" dir="ltr"></time>
+              <time id="game-clock" data-copy-label="activeTime" aria-label="زمان فعال باقی‌مانده" dir="ltr"></time>
             </div>
             <div class="play-feedback">
               <h2 id="mission-result" hidden></h2>
@@ -55,88 +69,102 @@
             </div>
           </div>
           <dialog id="briefing" class="game-card" aria-labelledby="brief-title">
-            <h2 id="brief-title">Into the darkness</h2>
+            <h2 id="brief-title">در دل تاریکی</h2>
             <p id="brief-detail"></p>
             <dl id="mission-facts" class="mission-facts" hidden>
-              <div><dt data-copy="briefGoal">Light target</dt><dd id="brief-goal"></dd></div>
-              <div><dt data-copy="briefTime">Active time</dt><dd id="brief-time"></dd></div>
-              <div><dt data-copy="briefTunnels">Tunnels</dt><dd id="brief-tunnels"></dd></div>
+              <div><dt data-copy="briefGoal">هدف نور</dt><dd id="brief-goal"></dd></div>
+              <div><dt data-copy="briefTime">زمان فعال</dt><dd id="brief-time"></dd></div>
+              <div><dt data-copy="briefTunnels">تونل‌ها</dt><dd id="brief-tunnels"></dd></div>
             </dl>
-            <button id="mission-start" class="primary" type="button">Start mission</button>
-            <button id="brief-back" data-copy="back" type="button">Back</button>
+            <button id="mission-start" class="primary" type="button">شروع مأموریت</button>
+            <button id="brief-back" data-copy="back" type="button">بازگشت</button>
           </dialog>
           <dialog id="shop-panel" class="game-card" aria-labelledby="shop-title">
-            <h2 id="shop-title" data-copy="shop">Shop</h2>
+            <h2 id="shop-title" data-copy="shop">فروشگاه</h2>
             <p id="shop-balance" class="crystal-balance"></p>
-            <p id="shop-intro" data-copy="rewardLimit">The guardian’s reward buys one upgrade.</p>
+            <p id="shop-intro" data-copy="rewardLimit">با پاداش نگهبان می‌توانید یک ارتقا بخرید.</p>
             <p id="shop-feedback" role="status" tabindex="-1" hidden></p>
             <div class="shop-offer">
               <span class="upgrade-icon light-radius" aria-hidden="true"></span>
-              <p><strong data-copy="explorationRadius">Exploration light radius</strong><br><span data-copy="explorationEffect">Reveal openings 10% farther away.</span></p>
+              <p><strong data-copy="explorationRadius">شعاع نور جست‌وجو</strong><br><span data-copy="explorationEffect">دهانه‌ها را از ۱۰٪ دورتر پیدا کنید.</span></p>
               <div class="shop-action">
-                <button type="button" data-upgrade="exploration-radius" aria-describedby="exploration-shortfall">Buy for 8 crystals</button>
+                <button type="button" data-upgrade="exploration-radius" aria-describedby="exploration-shortfall">خرید با ۸ بلور</button>
                 <p id="exploration-shortfall" class="upgrade-shortfall" hidden></p>
               </div>
             </div>
             <div class="shop-offer">
               <span class="upgrade-icon collection-radius" aria-hidden="true"></span>
-              <p><strong data-copy="collectionRadius">Collection radius</strong><br><span data-copy="collectionEffect">Catch lights from 10% farther away.</span></p>
+              <p><strong data-copy="collectionRadius">شعاع جمع‌آوری</strong><br><span data-copy="collectionEffect">نورها را از ۱۰٪ دورتر بگیرید.</span></p>
               <div class="shop-action">
-                <button type="button" data-upgrade="collection-radius" aria-describedby="collection-shortfall">Buy for 10 crystals</button>
+                <button type="button" data-upgrade="collection-radius" aria-describedby="collection-shortfall">خرید با ۱۰ بلور</button>
                 <p id="collection-shortfall" class="upgrade-shortfall" hidden></p>
               </div>
             </div>
-            <button id="shop-back" data-copy="back" type="button">Back</button>
+            <button id="shop-back" data-copy="back" type="button">بازگشت</button>
           </dialog>
           <dialog id="practice-panel" class="game-card" aria-labelledby="practice-title">
-            <h2 id="practice-title" data-copy="practice">Practice</h2>
-            <p data-copy="practiceDark">Revisit a mission in its original darkness. The forest stays restored.</p>
+            <h2 id="practice-title" data-copy="practice">تمرین</h2>
+            <p data-copy="practiceDark">مأموریت را در تاریکی آغازین دوباره بازی کنید. جنگل روشن می‌ماند.</p>
             <p id="practice-equipment"></p>
-            <button type="button" data-practice="0">Mission 1</button>
-            <button type="button" data-practice="1">Mission 2</button>
-            <button type="button" data-practice="2">Mission 3</button>
-            <button id="practice-back" data-copy="back" type="button">Back</button>
+            <button type="button" data-practice="0">مأموریت ۱</button>
+            <button type="button" data-practice="1">مأموریت ۲</button>
+            <button type="button" data-practice="2">مأموریت ۳</button>
+            <button id="practice-back" data-copy="back" type="button">بازگشت</button>
           </dialog>
           <dialog id="settings-panel" class="game-card" aria-labelledby="settings-title">
-            <h2 id="settings-title" data-copy="settings">Settings</h2>
-            <label class="setting-row"><span data-copy="sound">Sound effects</span><input id="setting-sound" type="checkbox" checked></label>
-            <label class="setting-row"><span data-copy="motionSetting">Reduce motion</span><input id="setting-motion" type="checkbox" aria-describedby="system-motion"></label>
-            <p id="system-motion" data-copy="systemMotion" hidden>Your device requests reduced motion.</p>
-            <label class="setting-row"><span data-copy="pointerSensitivity">Pointer sensitivity</span>
+            <h2 id="settings-title" data-copy="settings">تنظیمات</h2>
+            <label class="setting-row"><span data-copy="sound">جلوه‌های صوتی</span><input id="setting-sound" type="checkbox" checked></label>
+            <label class="setting-row"><span data-copy="motionSetting">کاهش حرکت</span><input id="setting-motion" type="checkbox" aria-describedby="system-motion"></label>
+            <p id="system-motion" data-copy="systemMotion" hidden>کاهش حرکت در تنظیمات دستگاه فعال است.</p>
+            <label class="setting-row"><span data-copy="pointerSensitivity">حساسیت ماوس و لمس</span>
               <select id="setting-sensitivity">
-                <option value="0.75" data-copy="gentle">Gentle</option>
-                <option value="1" data-copy="standard" selected>Standard</option>
-                <option value="1.25" data-copy="quick">Quick</option>
+                <option value="0.75" data-copy="gentle">کم</option>
+                <option value="1" data-copy="standard" selected>عادی</option>
+                <option value="1.25" data-copy="quick">زیاد</option>
               </select>
             </label>
-            <div class="setting-row"><span data-copy="language">Language</span><a id="language-switch" data-copy="otherLanguage" href="?lang=fa">فارسی</a></div>
-            <button id="settings-back" data-copy="back" type="button">Back</button>
+            <label class="setting-row"><span data-copy="language">زبان</span>
+              <select id="language-switch">
+                <option value="fa" lang="fa" dir="rtl">فارسی</option>
+                <option value="en" lang="en" dir="ltr">English</option>
+              </select>
+            </label>
+            <button id="settings-back" data-copy="back" type="button">بازگشت</button>
           </dialog>
         </div>
         <figcaption>
-          <h2 id="scene-title" data-copy="clearing">Forest clearing</h2>
+          <h2 id="scene-title" data-copy="clearing">محوطهٔ جنگل</h2>
           <div class="scene-controls">
-            <button id="story" class="primary" data-copy="playStory" type="button" hidden>Play story</button>
-            <button id="play" data-copy="startExploring" type="button" hidden>Start exploring · Tutorial</button>
-            <button id="shop" data-copy="shop" type="button" hidden>Shop</button>
-            <button id="practice" data-copy="practice" type="button" hidden>Practice</button>
-            <button id="settings" data-copy="settings" type="button" hidden>Settings</button>
+            <button id="story" class="primary" data-copy="playStory" type="button" hidden>شروع داستان</button>
+            <button id="play" data-copy="startExploring" type="button" hidden>آموزش بازی</button>
+            <button id="shop" data-copy="shop" type="button" hidden>فروشگاه</button>
+            <button id="practice" data-copy="practice" type="button" hidden>تمرین</button>
+            <button id="settings" data-copy="settings" type="button" hidden>تنظیمات</button>
             <button id="motion" type="button" hidden>
               <span class="motion-icon" aria-hidden="true"></span>
-              <span id="motion-label">Pause motion</span>
+              <span id="motion-label">توقف حرکت</span>
             </button>
-            <button id="tutorial-next" class="primary" type="button" hidden>Play story</button>
-            <button id="game-action" class="primary" type="button" hidden>Pause</button>
-            <button id="game-menu" type="button" hidden>Back to menu</button>
+            <button id="tutorial-next" class="primary" type="button" hidden>شروع داستان</button>
+            <button id="game-action" class="primary" type="button" hidden>توقف</button>
+            <button id="game-menu" type="button" hidden>بازگشت به فهرست</button>
           </div>
         </figcaption>
       </figure>
       <p id="forest-progress" class="forest-progress" hidden></p>
-      <p id="local-save" data-copy="localSave" hidden>Progress saves in this browser.</p>
+      <p id="local-save" data-copy="localSave" hidden>پیشرفت شما در همین مرورگر ذخیره می‌شود.</p>
       <p id="profile-notice" role="status" hidden></p>
-      <button id="profile-memory" data-copy="playUnsaved" type="button" hidden>Play without saving</button>
-      <noscript><p>This preview needs JavaScript. Enable it in your browser and reload the page.</p></noscript>
+      <button id="profile-memory" data-copy="playUnsaved" type="button" hidden>بازی بدون ذخیره</button>
+      <noscript><p>برای شروع بازی، جاوااسکریپت را در مرورگر فعال کنید و صفحه را دوباره باز کنید.</p></noscript>
     </main>
+    <script>
+      if (document.documentElement.lang === 'en') {
+        document.querySelector('[data-copy="title"]').textContent = 'Light Hunt';
+        document.getElementById('scene-title').textContent = 'Forest clearing';
+        document.getElementById('glade').setAttribute('aria-label', 'A golden firefly hovering among reeds in a blue-green clearing');
+        document.getElementById('status').textContent = 'Loading the clearing…';
+        document.querySelector('.retry').textContent = 'Reload preview';
+      }
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
