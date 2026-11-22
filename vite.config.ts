@@ -1,13 +1,26 @@
 import { readFileSync } from 'node:fs';
-import { defineConfig } from 'vite';
+import { defineConfig, type Connect } from 'vite';
 
 const notice = 'THIRD-PARTY-NOTICES.txt';
+const health: Connect.NextHandleFunction = (request, response, next) => {
+  if (request.url !== '/health') return next();
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    response.writeHead(405, { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' }).end();
+    return;
+  }
+  response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  response.end(request.method === 'HEAD' ? undefined : '{"status":"ok"}\n');
+};
 
 export default defineConfig({
   build: {
     license: { fileName: notice },
   },
   plugins: [{
+    name: 'local-health',
+    configureServer(server) { server.middlewares.use(health); },
+    configurePreviewServer(server) { server.middlewares.use(health); },
+  }, {
     name: 'vazirmatn-license',
     generateBundle: {
       order: 'post',

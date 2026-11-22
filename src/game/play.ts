@@ -33,11 +33,14 @@ export interface GameHud {
   collecting: boolean;
   hint: string;
   action: string;
+  interruptible: boolean;
+  retryable: boolean;
 }
 
 export interface GameView extends View {
   startClock(): void;
   action(): void;
+  pause(): void;
   setReducedMotion(reduced: boolean): void;
 }
 
@@ -53,6 +56,7 @@ export function createGame(
     restored?: number;
     sensitivity?: number;
     sound?: boolean;
+    canResume?: () => boolean;
     onStoryWin?: (mission: GeneratedMission) => number;
     onPracticeResult?: (mission: GeneratedMission, loadout: Loadout, score: number) => number | null;
   } = {},
@@ -252,6 +256,7 @@ export function createGame(
   function togglePause() {
     if (returned || (attempt.outcome && !returning)) return;
     if (attempt.paused || returnPaused) {
+      if (document.hidden || options.canResume?.() === false) return;
       lastFrame = performance.now();
       attempt = reduceAttempt(attempt, { type: 'resume' });
       returnPaused = false;
@@ -273,7 +278,8 @@ export function createGame(
         ? reduceAttempt(attempt, { type: 'retry', id })
         : createAttempt(mission, { mode, id, loadout: attempt.loadout });
       position = start;
-      lastFrame = performance.now();
+      const background = document.hidden || !document.hasFocus();
+      lastFrame = background ? undefined : performance.now();
       feedbackUntil = 0;
       phaseTime = 0;
       distance = 0;
@@ -285,8 +291,11 @@ export function createGame(
       practiceBest = null;
       selectRoute(routes[0]!);
       controls.reset();
-      canvas.focus({ preventScroll: true });
-      redraw();
+      if (background) pause();
+      else {
+        canvas.focus({ preventScroll: true });
+        redraw();
+      }
     }
   }
 
@@ -411,10 +420,13 @@ export function createGame(
         storyWon: mode === 'story' && outcome?.kind === 'success',
         collecting: visualMs - pickupMs < 230, hint: hint(ready),
         action: t(attempt.paused || returnPaused ? 'resume' : returned || (attempt.outcome && !returning) ? 'retry' : 'pause'),
+        interruptible: !tutorial && !returned && !attempt.outcome,
+        retryable: !tutorial && !returning && !!outcome && (mode === 'practice' || outcome.kind === 'failure'),
       });
     },
     startClock() { lastFrame = performance.now(); },
     action,
+    pause,
     setReducedMotion(reduced) {
       reducedMotion = reduced;
       redraw();

@@ -29,39 +29,59 @@ export function createPreview(
   const renderer = new WebGLRenderer({ canvas, context });
   let view: View = createGlade();
   let paused = true;
-  let frameId = 0;
+  let disposed = false;
+  let frameId: number | undefined;
   let previousTime: number | undefined;
   let elapsedSeconds = 0;
+  let bufferWidth = 0, bufferHeight = 0, bufferRatio = 0;
 
   function draw(now?: number) {
-    view.update(elapsedSeconds, now);
-    renderer.render(view.scene, view.camera);
+    if (disposed) return;
+    const current = view;
+    current.update(elapsedSeconds, now);
+    if (!disposed && current === view) renderer.render(current.scene, current.camera);
   }
 
-  function resize() {
+  function resize(newView = false) {
+    if (disposed) return;
     const { width, height, aspect, pixelRatio } = viewportSize(
       canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio,
     );
-    renderer.setDrawingBufferSize(width, height, pixelRatio);
+    const changed = width !== bufferWidth || height !== bufferHeight || pixelRatio !== bufferRatio;
+    if (changed) {
+      renderer.setDrawingBufferSize(width, height, pixelRatio);
+      bufferWidth = width;
+      bufferHeight = height;
+      bufferRatio = pixelRatio;
+    }
     view.resize(aspect);
-    draw();
+    if (changed || newView) draw();
+  }
+
+  function requestFrame() {
+    if (frameId === undefined && !disposed && !paused && !document.hidden) {
+      frameId = requestAnimationFrame(animate);
+    }
   }
 
   function animate(now: number) {
+    frameId = undefined;
+    if (disposed || paused || document.hidden) return;
     if (previousTime !== undefined) elapsedSeconds += (now - previousTime) / 1000;
     previousTime = now;
     try {
       draw(now);
-      frameId = requestAnimationFrame(animate);
+      requestFrame();
     } catch {
       onError();
     }
   }
 
   function syncMotion() {
-    cancelAnimationFrame(frameId);
+    if (frameId !== undefined) cancelAnimationFrame(frameId);
+    frameId = undefined;
     previousTime = undefined;
-    if (!paused && !document.hidden) frameId = requestAnimationFrame(animate);
+    requestFrame();
   }
 
   function onResize() {
@@ -74,7 +94,9 @@ export function createPreview(
 
   const observer = new ResizeObserver(onResize);
   function dispose() {
-    cancelAnimationFrame(frameId);
+    if (disposed) return;
+    disposed = true;
+    syncMotion();
     observer.disconnect();
     window.removeEventListener('resize', onResize);
     document.removeEventListener('visibilitychange', syncMotion);
@@ -94,9 +116,13 @@ export function createPreview(
 
   return {
     show(nextView) {
+      if (disposed) {
+        nextView.dispose();
+        return;
+      }
       view.dispose();
       view = nextView;
-      resize();
+      resize(true);
     },
     showIntro() {
       this.show(createGlade());
@@ -122,6 +148,7 @@ export function createPreview(
       }
     },
     setPaused(value) {
+      if (paused === value) return;
       paused = value;
       syncMotion();
     },

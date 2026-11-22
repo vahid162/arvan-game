@@ -43,6 +43,17 @@ function setup(aspect = 1, instance = tunnel) {
   return { world, view, pose, release };
 }
 
+it('renders the surface during camera handoffs and skips it only in the enclosed bore', () => {
+  const { world, view, pose } = setup();
+  const entrance = world.scene.children.find(child =>
+    child.position.x === tunnel.entry.x && child.position.z === tunnel.entry.z)!;
+  for (const phase of ['explore', 'drop', 'ready', 'tunnel', 'exit', 'explore'] as const) {
+    pose(phase, 0.5, 12);
+    expect(view.camera.layers.test(entrance.layers)).toBe(phase !== 'ready' && phase !== 'tunnel');
+    expect(view.camera.layers.test(world.firefly.layers)).toBe(true);
+  }
+});
+
 it.each(viewports)('joins the camera poses for $instance.id, $instance.templateId, aspect $aspect', ({ instance: tunnel, aspect }) => {
   const { world, pose, release } = setup(aspect, tunnel);
   const explorationCamera = cameraPose(world.camera);

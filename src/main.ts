@@ -3,6 +3,7 @@ import type { GameHud, GameView } from './game/play';
 import type { AttemptMode, GeneratedMission, Language, Profile, UpgradeId } from './game/core/types';
 import { FOREST_MISSIONS, UPGRADES } from './game/content/fixtures';
 import { openProfile, type ProfileStore } from './game/profile';
+import { checkReadiness } from './game/readiness';
 import { formatClock, resolveLanguage, setLanguage, t, type CopyKey } from './ui/copy';
 
 const shell = document.querySelector<HTMLElement>('#shell')!;
@@ -15,6 +16,7 @@ const story = document.querySelector<HTMLButtonElement>('#story')!;
 const briefing = document.querySelector<HTMLDialogElement>('#briefing')!;
 const briefTitle = document.querySelector<HTMLElement>('#brief-title')!;
 const briefDetail = document.querySelector<HTMLElement>('#brief-detail')!;
+const briefStatus = document.querySelector<HTMLElement>('#brief-status')!;
 const missionFacts = document.querySelector<HTMLElement>('#mission-facts')!;
 const briefGoal = document.querySelector<HTMLElement>('#brief-goal')!;
 const briefTime = document.querySelector<HTMLElement>('#brief-time')!;
@@ -63,12 +65,19 @@ const panelBackButtons = [[briefing, briefBack], [shopPanel, shopBack], [practic
 let preview: Preview | undefined;
 let game: GameView | undefined;
 let pendingStart: AbortController | undefined;
+type ConnectionPurpose = 'resume' | 'retry';
+type GameConnection = { purpose: ConnectionPurpose; status: 'checking' | 'blocked' | 'restored' };
+type TimedMode = Exclude<AttemptMode, 'tutorial'>;
+const connectionMessages = { checking: 'checkingConnection', blocked: 'connectionUnavailable', restored: 'connectionRestored' } as const;
+let connection: GameConnection | undefined;
+let pendingCheck: AbortController | undefined;
+let lastHud: GameHud | undefined;
 let gameOpener = play;
 let cancelled = false;
 let campaignStep = 0;
 let profile: ProfileStore | undefined;
 let offeredIndex: 0 | 1 | 2 | undefined;
-let offeredMode: AttemptMode = 'story';
+let offeredMode: TimedMode = 'story';
 let practicing = false;
 let storyWon = false;
 let previewPausedByPlayer = false;
@@ -115,13 +124,16 @@ function showFailure(message: string) {
   gameAction.hidden = true;
   gameMenu.hidden = true;
   gamePanel.hidden = true;
+  delete shell.dataset.playing;
   memoryButton.hidden = true;
   localSave.hidden = true;
   cancelled = true;
+  clearConnection();
   profile?.close();
   preview?.dispose();
   preview = undefined;
   game = undefined;
+  shell.querySelector<HTMLAnchorElement>('.retry')?.focus({ preventScroll: true });
 }
 
 function setPaused(paused: boolean) {
@@ -189,10 +201,16 @@ function hidePanels() {
     pendingStart = undefined;
     play.disabled = missionStart.disabled = false;
   }
+  setBriefStatus();
   for (const [panel] of panelBackButtons) {
     if (panel.open) panel.close();
   }
   memoryButton.before(profileNotice);
+}
+
+function setBriefStatus(key?: CopyKey) {
+  briefStatus.hidden = key === undefined;
+  setText(briefStatus, key ? t(key) : '');
 }
 
 function openPanel(panel: HTMLDialogElement, focus: HTMLElement) {
@@ -214,6 +232,7 @@ function settleDelivery() {
 }
 
 function showHud(hud: GameHud) {
+  lastHud = hud;
   storyWon = hud.storyWon;
   gamePanel.dataset.phase = hud.phase;
   gamePanel.dataset.ready = String(hud.ready);
@@ -238,35 +257,103 @@ function showHud(hud: GameHud) {
   setText(tutorialNext, story.textContent || t('playStory'));
   gameMenu.hidden = storyWon || (!hud.result && !hud.paused);
   setText(missionResult, hud.result);
-  setText(gameHint, storyWon ? elixirMessage() : hud.hint);
-  resultTip.hidden = hud.failure === null;
+  const connectionHint = connection && t(connectionMessages[connection.status]);
+  setText(gameHint, connectionHint ?? (storyWon ? elixirMessage() : hud.hint));
+  resultTip.hidden = hud.failure === null || !!connection;
   setText(resultTip, hud.failure ? t(hud.failure === 'deadline' ? 'deadlineTip' : 'steeringTip') : '');
-  setText(gameAction, storyWon ? t(campaignStep < missionIndices.length ? 'nextMission' : 'backClearing') : hud.action);
+  gameAction.disabled = connection?.status === 'checking';
+  const action = connection?.status === 'blocked' ? t(connection.purpose === 'resume' ? 'checkConnection' : 'retryConnection')
+    : connection?.status === 'checking' ? t('checkingConnection')
+    : storyWon ? t(campaignStep < missionIndices.length ? 'nextMission' : 'backClearing') : hud.action;
+  setText(gameAction, action);
   const underground = hud.phase.startsWith('tunnel');
   setText(sceneTitle, t(underground ? 'underground' : 'clearing'));
   const playfield = t(underground ? 'tunnelField' : 'forestField');
   if (canvas.getAttribute('aria-label') !== playfield) canvas.setAttribute('aria-label', playfield);
 }
 
-async function startGame(mission?: GeneratedMission, mode: AttemptMode = 'story', trainingStage = 0) {
+function clearConnection() {
+  pendingCheck?.abort();
+  pendingCheck = undefined;
+  connection = undefined;
+  lastHud = undefined;
+}
+
+async function checkGameConnection(purpose: ConnectionPurpose) {
+  const current = game;
+  if (!current || pendingCheck || (purpose === 'resume' ? !lastHud?.interruptible : !lastHud?.retryable)) return;
+  const request = new AbortController();
+  pendingCheck = request;
+  connection = { purpose, status: 'checking' };
+  if (purpose === 'resume') {
+    current.pause();
+    if (!lastHud?.interruptible) {
+      pendingCheck = undefined;
+      connection = undefined;
+      if (lastHud) showHud(lastHud);
+      return;
+    }
+  }
+  if (lastHud) showHud(lastHud);
+  const ready = await checkReadiness(request.signal);
+  if (pendingCheck !== request || game !== current) return;
+  pendingCheck = undefined;
+  if (ready && purpose === 'retry') {
+    connection = undefined;
+    current.action();
+    return;
+  }
+  connection = { purpose, status: ready ? 'restored' : 'blocked' };
+  if (lastHud) showHud(lastHud);
+}
+
+window.addEventListener('offline', () => {
+  // A hint can be false. Suspend input while the same-origin probe checks it.
+  void checkGameConnection('resume');
+});
+window.addEventListener('online', () => {
+  if (connection?.purpose === 'resume' && connection.status === 'blocked') void checkGameConnection('resume');
+});
+
+async function startGame(selection?: { index: 0 | 1 | 2; mode: TimedMode }) {
   if (game || play.disabled) return;
   const request = new AbortController();
   pendingStart = request;
   play.disabled = true;
   missionStart.disabled = true;
   try {
+    if (selection) {
+      setBriefStatus('checkingConnection');
+      const ready = await checkReadiness(request.signal);
+      if (request.signal.aborted) return;
+      if (!ready) {
+        setBriefStatus('connectionUnavailable');
+        setText(missionStart, t('retryConnection'));
+        return;
+      }
+      setBriefStatus('preparingGame');
+    }
     const { createGame } = await import('./game/play');
     if (!preview || request.signal.aborted) return;
+    const mode = selection?.mode ?? 'tutorial';
+    const mission = selection && (mode === 'practice' ? profile?.practiceMission(selection.index) : profile?.assignMission(selection.index));
+    if (selection && !mission) return;
+    if (selection) refreshProfile();
     pendingStart = undefined;
     practicing = !!mission && mode === 'practice';
     gameOpener = practicing ? practice : mission ? story : play;
     game = createGame(canvas, lessMotion(), showHud, () => preview?.redraw(), {
-      mission,
+      mission: mission ?? undefined,
       mode,
       sound: preferences.sound,
       sensitivity: preferences.sensitivity,
+      canResume() {
+        if (connection && connection.status !== 'restored') return false;
+        connection = undefined;
+        return true;
+      },
       loadout: mission ? profile?.profile.upgrades : undefined,
-      restored: practicing ? trainingStage : mission ? campaignStep : 0,
+      restored: selection ? selection.mode === 'practice' ? selection.index : campaignStep : 0,
       onStoryWin(completed) {
         profile?.completeMission(completed);
         refreshProfile();
@@ -295,9 +382,16 @@ async function startGame(mission?: GeneratedMission, mode: AttemptMode = 'story'
     canvas.tabIndex = 0;
     canvas.focus({ preventScroll: true });
     preview.show(game);
-    game.startClock();
+    if (document.hidden || !document.hasFocus()) game.pause();
+    else game.startClock();
   } catch {
     if (!request.signal.aborted) showFailure(t('gameFailed'));
+  } finally {
+    if (pendingStart === request) {
+      pendingStart = undefined;
+      play.disabled = missionStart.disabled = false;
+      if (briefing.open && !briefStatus.hidden) missionStart.focus({ preventScroll: true });
+    }
   }
 }
 play.onclick = () => void startGame();
@@ -356,9 +450,7 @@ missionStart.onclick = () => {
     return;
   }
   if (offeredIndex !== undefined) {
-    const mission = offeredMode === 'practice' ? profile?.practiceMission(offeredIndex) : profile?.assignMission(offeredIndex);
-    refreshProfile();
-    if (mission) void startGame(mission, offeredMode, offeredIndex);
+    void startGame({ index: offeredIndex, mode: offeredMode });
   }
 };
 
@@ -493,6 +585,15 @@ memoryButton.onclick = () => {
   story.focus();
 };
 gameAction.onclick = () => {
+  if (connection?.status === 'checking') return;
+  if (connection?.status === 'blocked') {
+    void checkGameConnection(connection.purpose);
+    return;
+  }
+  if (lastHud?.retryable) {
+    void checkGameConnection('retry');
+    return;
+  }
   if (!storyWon) {
     game?.action();
     return;
@@ -503,6 +604,7 @@ gameAction.onclick = () => {
 };
 function showMenu() {
   if (!preview) return;
+  clearConnection();
   game = undefined;
   practicing = false;
   storyWon = false;

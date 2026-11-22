@@ -4,7 +4,7 @@ import {
 } from 'three';
 import type { Anchor, TunnelInstance } from '../core/types';
 import type { TunnelTemplateId } from '../content/generation';
-import type { createExplorationWorld } from './exploration';
+import { FOREST_SURFACE_LAYER, type createExplorationWorld } from './exploration';
 
 interface TravelPose {
   phase: 'explore' | 'drop' | 'ready' | 'tunnel' | 'exit';
@@ -17,6 +17,10 @@ interface TravelPose {
 
 const vertical = new Vector3(0, 1, 0);
 const smooth = (value: number, start: number, end: number) => MathUtils.smootherstep(value, start, end);
+
+function pathFrame() {
+  return { center: new Vector3(), tangent: new Vector3(), right: new Vector3(), up: new Vector3() };
+}
 
 // Cross is a fraction of the anchor chord, run a fraction of the fitted forward span, depth in world units.
 type Knot = readonly [cross: number, run: number, depth: number];
@@ -75,20 +79,22 @@ function buildPath(tunnel: TunnelInstance) {
   const firstRight = start.clone().cross(vertical).normalize();
   const lastRight = end.clone().cross(vertical).normalize();
 
-  function frameAt(distance: number) {
+  function frameAt(distance: number, frame = pathFrame()) {
     const before = distance < 0;
     const after = distance > tunnel.length;
     const curve = before ? lead : after ? tail : main;
     const t = before ? (distance - minimum) / -minimum :
       after ? (distance - tunnel.length) / (maximum - tunnel.length) : distance / tunnel.length;
     const u = MathUtils.clamp(t, 0, 1);
-    const center = curve.getPointAt(u);
-    const tangent = curve.getTangentAt(u);
+    const { center, tangent, right, up } = frame;
+    curve.getPointAt(u, center);
+    curve.getTangentAt(u, tangent);
     if (distance < minimum) center.addScaledVector(tangent, distance - minimum);
     if (distance > maximum) center.addScaledVector(tangent, distance - maximum);
-    const right = before ? firstRight.clone() : after ? lastRight.clone() : tangent.clone().cross(vertical).normalize();
-    const up = right.clone().cross(tangent).normalize();
-    return { center, tangent, right, up };
+    if (before || after) right.copy(before ? firstRight : lastRight);
+    else right.copy(tangent).cross(vertical).normalize();
+    up.copy(right).cross(tangent).normalize();
+    return frame;
   }
   return { frameAt, minimum, maximum };
 }
@@ -98,16 +104,18 @@ function tunnelWall(path: ReturnType<typeof buildPath>, radius: number, mouth: n
   const coordinates: number[] = [];
   const indices: number[] = [];
   const sides = 18;
+  const frame = pathFrame();
+  const p = new Vector3();
   const steps = Math.ceil((path.maximum - path.minimum) * 4);
   for (let i = 0; i <= steps; i++) {
     const s = MathUtils.lerp(path.minimum, path.maximum, i / steps);
-    const { center, right, up } = path.frameAt(s);
+    const { center, right, up } = path.frameAt(s, frame);
     const fromLip = Math.min(s - path.minimum, path.maximum - s);
     const width = MathUtils.lerp(mouth, radius, smooth(fromLip, 0.1, 5.5));
     for (let j = 0; j <= sides; j++) {
       const a = j / sides * Math.PI * 2;
       const ripple = smooth(fromLip, 0.2, 1.5) * 0.023 * (Math.sin(a * 5 + s * 0.6) + Math.sin(a * 3 - s * 0.8));
-      const p = center.clone().addScaledVector(right, width * (1 + ripple) * Math.cos(a))
+      p.copy(center).addScaledVector(right, width * (1 + ripple) * Math.cos(a))
         .addScaledVector(up, width * (1 + ripple) * Math.sin(a));
       positions.push(p.x, p.y, p.z);
       coordinates.push(j / sides, s);
@@ -158,25 +166,32 @@ export function createTunnelView(world: ReturnType<typeof createExplorationWorld
   world.scene.add(group);
   const camera = world.camera.clone();
   const orientation = new Matrix4();
+  const bodyFrame = pathFrame(), eyeFrame = pathFrame(), focusFrame = pathFrame();
+  const eyeRotation = new Quaternion(), flightRotation = new Quaternion();
+  const groundFly = new Vector3(), groundRotation = new Quaternion();
+  const flyAngle = new Quaternion().setFromAxisAngle(vertical, -0.42);
+  const reducedFlyAngle = new Quaternion().setFromAxisAngle(vertical, -0.33);
+
+  function placeEye(station: number, trail: number) {
+    const at = path.frameAt(station, eyeFrame);
+    at.center.addScaledVector(at.up, 0.17 * smooth(Math.min(station - path.minimum, path.maximum - station), 0, 3));
+    const ahead = path.frameAt(station + trail + 0.40, focusFrame);
+    ahead.center.addScaledVector(ahead.up, 0.23);
+    eyeRotation.setFromRotationMatrix(orientation.lookAt(at.center, ahead.center, at.up));
+  }
 
   function applyPose({ phase, position, progress, distance, lateral, reducedMotion }: TravelPose) {
     camera.copy(world.camera);
+    if (phase === 'ready' || phase === 'tunnel') camera.layers.disable(FOREST_SURFACE_LAYER);
     group.visible = phase !== 'explore';
     world.setAperture(phase === 'explore' ? null : phase === 'exit' ? tunnel.exit : tunnel.entry);
     if (phase === 'explore') return;
     const trail = MathUtils.clamp(2.8 / Math.pow(camera.aspect, 0.36), 2.65, 3.65);
     const chaseFov = Math.max(51, MathUtils.radToDeg(2 * Math.atan(1.72 / (trail * camera.aspect))));
 
-    function eyePose(station: number) {
-      const at = path.frameAt(station);
-      const eye = at.center.addScaledVector(at.up, 0.17 * smooth(Math.min(station - path.minimum, path.maximum - station), 0, 3));
-      const ahead = path.frameAt(station + trail + 0.40);
-      const target = ahead.center.addScaledVector(ahead.up, 0.23);
-      return { eye, rotation: new Quaternion().setFromRotationMatrix(orientation.lookAt(eye, target, at.up)) };
-    }
     const ground = world.camera;
-    const groundFly = world.firefly.position.clone();
-    const groundRotation = world.firefly.quaternion.clone();
+    groundFly.copy(world.firefly.position);
+    groundRotation.copy(world.firefly.quaternion);
     let station = phase === 'ready' || phase === 'drop' ? 0 : phase === 'exit' ? tunnel.length : distance;
     let eyeStation = station - trail;
     let groundBlend = 0;
@@ -197,9 +212,9 @@ export function createTunnelView(world: ReturnType<typeof createExplorationWorld
       groundFly.x = tunnel.exit.x;
       groundFly.z = tunnel.exit.z;
     }
-    const eye = eyePose(eyeStation);
-    camera.position.copy(eye.eye).lerp(ground.position, groundBlend);
-    const body = path.frameAt(station);
+    placeEye(eyeStation, trail);
+    camera.position.copy(eyeFrame.center).lerp(ground.position, groundBlend);
+    const body = path.frameAt(station, bodyFrame);
     const lateralWeight = phase === 'exit' ? 1 - smooth(progress, 0, 0.42) : phase === 'tunnel' ? 1 : 0;
     world.firefly.position.copy(body.center).addScaledVector(body.right, lateral * lateralWeight).lerp(groundFly, groundFlyBlend);
     if (phase === 'exit') {
@@ -207,7 +222,7 @@ export function createTunnelView(world: ReturnType<typeof createExplorationWorld
       const back = new Vector3(ground.position.x - tunnel.exit.x, 0, ground.position.z - tunnel.exit.z).normalize();
       const flightArc = smooth(progress, 0.62, 0.79) * (1 - smooth(progress, 0.82, 1));
       world.firefly.position.addScaledVector(back, -1.35 * flightArc);
-      camera.position.addScaledVector(back, 0.85 * smooth(eye.eye.y, 0, 1.3) * (1 - groundBlend));
+      camera.position.addScaledVector(back, 0.85 * smooth(eyeFrame.center.y, 0, 1.3) * (1 - groundBlend));
     }
     if (phase === 'drop' || phase === 'exit') {
       // In the narrow neck, face the visible fly. Transport screen-right around the vertical lip.
@@ -221,15 +236,15 @@ export function createTunnelView(world: ReturnType<typeof createExplorationWorld
       const up = new Vector3().crossVectors(rear, rimRight);
       const tracked = new Quaternion().setFromRotationMatrix(orientation.lookAt(camera.position, world.firefly.position, up));
       const weight = phase === 'drop' ? 1 - smooth(progress, 0.65, 1) : smooth(progress, 0, 0.26);
-      eye.rotation.slerp(tracked, weight);
+      eyeRotation.slerp(tracked, weight);
     }
-    camera.quaternion.copy(eye.rotation).slerp(ground.quaternion, groundBlend);
+    camera.quaternion.copy(eyeRotation).slerp(ground.quaternion, groundBlend);
     camera.fov = MathUtils.lerp(chaseFov, ground.fov, groundBlend);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
-    const flightRotation = new Quaternion().setFromRotationMatrix(orientation.makeBasis(body.tangent, body.up, body.right));
+    flightRotation.setFromRotationMatrix(orientation.makeBasis(body.tangent, body.up, body.right));
     // A slight three-quarter view keeps the wings legible from behind.
-    flightRotation.multiply(new Quaternion().setFromAxisAngle(vertical, reducedMotion ? -0.33 : -0.42));
+    flightRotation.multiply(reducedMotion ? reducedFlyAngle : flyAngle);
     world.firefly.quaternion.copy(flightRotation).slerp(groundRotation, groundFlyBlend);
   }
 

@@ -10,6 +10,7 @@ import type { Anchor } from '../core/types';
 import { makeFirefly } from './scene';
 
 interface Bounds { halfWidth: number; halfDepth: number }
+export const FOREST_SURFACE_LAYER = 1;
 type Entrance = Anchor & { radius: number };
 interface ExplorationOptions {
   entry: Entrance;
@@ -329,6 +330,11 @@ export function createExplorationWorld({
   const marker = new Mesh(new RingGeometry(0.074, 0.108, 24), new MeshBasicMaterial({ color: 0xffdb76 }));
   marker.rotation.x = -Math.PI / 2;
   scene.add(fly, marker);
+  // The enclosed bore hides these meshes. Keep the firefly and its lights on the default layer.
+  camera.layers.enable(FOREST_SURFACE_LAYER);
+  const surface = [forest, ground, marker, ...entrances.map(entrance => entrance.group)];
+  if (guardian) surface.push(guardian.group);
+  for (const object of surface) object.traverse(child => child.layers.set(FOREST_SURFACE_LAYER));
   const groundPlane = new Plane(new Vector3(0, 1, 0), 0);
   const ray = new Raycaster();
   const ndc = new Vector2();
