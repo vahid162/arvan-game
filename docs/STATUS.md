@@ -1,5 +1,7 @@
 # Light Hunt development status
 
+**Local MVP handoff complete.** External verification and deployment remain pending. [Preserved candidate and restart](#local-mvp-handoff)
+
 **P12 · BLOCKED on physical-phone acceptance** — local hardening covers connection checks, interrupted play and WebGL recovery. The 30 FPS target still needs named Android Chrome and iPhone Safari sessions. [P12 evidence](#p12-hardening)
 
 **P13 · BLOCKED on staging** — the local release candidate is built from `52ecef5`. Live staging needs P12 device evidence, the P02 provider probe and authorization for the named target. [Release preparation](#p13-and-p14-release-preparation)
@@ -33,6 +35,23 @@
 | P13 release candidate | `BLOCKED` on staging prerequisites |
 | P14 acceptance | `BLOCKED` on staging and player observation |
 | P15 production | `NOT_STARTED` |
+
+## Local MVP handoff
+
+The owner approved the implemented gameplay and product direction for the local handoff. The tested candidate remains `52ecef532e6391219883068044db655190809c06` on `feat/p12-release-preparation`. Changes after that revision are confined to this status record.
+
+The workspace archive is `../light-hunt-handoff/52ecef5/` relative to the repository root. It contains separate `dist/` and `dist-edge/` outputs, the lockfile, license notices, the tested Edge adapter, prior browser and performance evidence, and the complete local rollback rehearsal. The SHA-256 of `dist-edge/manifest.json` is `61e3d91835899b24a45aec7bd3e0b090c546ba64fca8b53dc3e05483485a8d7f`. Its origin is the local fixture `https://p02-assets.test`. A later staging build needs its own identity and verification. The archive stays outside Git on this workspace and depends on workspace retention.
+
+To start the preserved build from this repository on the current Linux x64 host, run the command below. Stop the existing preview with Ctrl+C before restarting. Reopen `http://127.0.0.1:4189/` in the same browser profile to use its saved progress. Add `?lang=en` for an English visit.
+
+```sh
+archive=../light-hunt-handoff/52ecef5
+"$archive/runtime/node" "$archive/edge/local.mjs" 4189
+```
+
+The existing 136 unit, 36 Edge contract and 42 Chromium results apply to the preserved bytes. The handoff matched the original artifact hashes, restarted the archived adapter, checked the entry and all eight asset responses plus GET and HEAD readiness, and verified the archived rollback rehearsal. A fresh Chromium profile loaded Persian and Vazirmatn, switched to English, and entered the first mission. The preview uses the archived Node 26.13.1 runtime.
+
+Physical Android Chrome and iPhone Safari performance, touch and camera comfort, the live P02 ArvanCloud probe, P13 staging deployment and rollback, P14 staging player acceptance, and P15 authorized production release remain deferred. The software-rendered measurements below still miss the 30 FPS target.
 
 ## P03 checkpoint
 
@@ -118,7 +137,7 @@ The renderer keeps one animation loop and reuses the drawing buffer on duplicate
 
 The clean source revision is `52ecef532e6391219883068044db655190809c06`. The local candidate uses Node 26.13.1, npm 11.20.0 and the reserved test asset origin. Its browser SHA-256 is `9b9b09ca78d37b8ac0563f6f646efd87310f9526a070a585a717551996eb972b`. Its worker SHA-256 is `40c0bb5c203b850a2e580826eb9d02794ffa58252cc5aba776bd5b890f03094f`. The release manifest binds both to the source and lockfile. [Build, staging and rollback instructions](../edge/README.md)
 
-All 42 Chromium checks passed on the exact candidate using `playwright test --config playwright.edge.config.ts`. They exercised the complete campaign, profile reload, the one-time guardian reward, purchases, practice and language along with input, network and graphics recovery. The local preview serves the archived entry and a non-cacheable health response at port 4189.
+All 42 Chromium checks passed on the exact candidate using `playwright test --config playwright.edge.config.ts`. They exercised the complete campaign, profile reload, the one-time guardian reward, purchases, practice and language along with input, network and graphics recovery.
 
 An independent offline install and clean rebuild reproduced both artifact directories byte for byte. In a local worker rehearsal, the candidate and recovery workers both served the eight distinct old and new JavaScript paths with the expected SHA-256 digests. Recovery restored the approved P11 entry. Both browser releases share the same save code and schema. Live provider execution, HTTPS delivery and staging rollback still need evidence from the authorized target.
 
