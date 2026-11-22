@@ -4,14 +4,22 @@ Light Hunt is a single-player browser game in development. The player guides a f
 
 ## Developer setup
 
-The P01 preview renders a firefly in a forest clearing using WebGL 2. To run it locally, use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
+The local demo includes all three forest missions, the guardian’s reward, the upgrade shop, and practice. Use the Node.js version in `.nvmrc` (26.13.1, with npm 11.20.0). From the repository root, run
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. A supported browser shows the animated firefly. The motion control pauses or resumes it, and a reduced-motion preference starts the scene paused. A browser without WebGL 2 displays a compatibility message.
+Open the local URL printed by Vite. New players start in Persian. Add `?lang=en` to try the English interface, then select **Play story** and **Start mission**. Each mission gives you 90 seconds of active time to collect 22, 25, or 28 lights from three tunnels.
+
+1. Hold and drag to guide the firefly, or move with the arrow keys. Sweep the far side of the clearing to reveal the three openings.
+2. Release when the amber ring and inward arrows appear. With a keyboard, press Space.
+3. At the tunnel entrance, move the mouse, touch the playfield again, or press Left or Right. Steer horizontally to collect lights as the firefly moves forward.
+4. Use **Pause**, Escape, or **Try again** as needed. A retry keeps the same layout. After each win, continue to the next mission to restore more of the forest.
+5. After the third win, return to the clearing. Spend your 12 crystals on a wider exploration light (8) or a wider collection radius (10). **Practice** replays any completed mission with your equipment and saves a separate best score.
+
+**Start exploring · Tutorial** teaches the controls in an untimed tunnel. Open **Settings** to save your language, sound, reduced motion, or mouse and touch steering preference. The game needs WebGL 2. Reopen the same address in the same browser profile to continue your saved forest.
 
 ## Build and verify
 
@@ -19,7 +27,7 @@ Open the local URL printed by Vite. A supported browser shows the animated firef
 | --- | --- |
 | `npm run typecheck` | Checks the browser source and tests in strict TypeScript mode |
 | `npm run lint` | Checks the code with Oxlint |
-| `npm run test:unit` | Tests viewport sizing and the rendering-density cap |
+| `npm run test:unit` | Tests mission rules, continuous collection, camera geometry and viewport sizing |
 | `npm run build` | Type-checks and produces the static browser files in `dist/` |
 | `npm run preview` | Serves that build locally |
 | `npm run test:browser` | Builds, starts an isolated local preview on port 4173 and runs the Chromium tests |

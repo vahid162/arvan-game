@@ -1,13 +1,147 @@
 # Light Hunt development status
 
-**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. P02 completion requires actual ArvanCloud evidence. The live probe awaits an approved account, target, asset origin and spending boundary. [P02 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p02--prove-the-smallest-arvancloud-delivery-path) · [Staging probe](../edge/README.md#staging-probe-after-approval)
+**Local MVP handoff complete.** External verification and deployment remain pending. [Preserved candidate and restart](#local-mvp-handoff)
+
+**P12 · BLOCKED on physical-phone acceptance** — local hardening covers connection checks, interrupted play and WebGL recovery. The 30 FPS target still needs named Android Chrome and iPhone Safari sessions. [P12 evidence](#p12-hardening)
+
+**P13 · BLOCKED on staging** — the local release candidate is built from `52ecef5`. Live staging needs P12 device evidence, the P02 provider probe and authorization for the named target. [Release preparation](#p13-and-p14-release-preparation)
+
+**P11-B · COMPLETE** — the owner approved the Persian-first design and presentation at `32ad01a`.
+
+**P11-A · COMPLETE** — the owner approved the difficulty at `1d56887`. The P10 build at `4fa8d16` was the comparison baseline.
+
+**P10 · READY_FOR_REVIEW** — the full forest campaign, upgrade shop and reward-free practice are playable locally on `feat/p07-p10-gameplay-loop`. [Play the game](../README.md#developer-setup)
+
+**P06 · READY_FOR_REVIEW** — the one-tunnel demo is playable locally. Owner feedback on steering and camera feel and physical-phone verification remain open. [Play the demo](../README.md#developer-setup)
+
+**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. The live probe awaits an approved account, target, asset origin, permissions and spending ceiling. [Staging inputs and probe](../edge/README.md#staging-inputs-and-probe)
 
 | Phase | State |
 | --- | --- |
 | P00 | `COMPLETE` |
 | P01 | `COMPLETE` |
 | P02 | `BLOCKED` |
-| P03–P15 | `NOT_STARTED` |
+| P03 | `COMPLETE` |
+| P04 | `COMPLETE` |
+| P05 | `COMPLETE` |
+| P06 | `READY_FOR_REVIEW` |
+| P07 | `COMPLETE` |
+| P08 | `COMPLETE` |
+| P09 | `COMPLETE` |
+| P10 | `READY_FOR_REVIEW` |
+| P11-A difficulty adjustment | `COMPLETE` |
+| P11-B presentation | `COMPLETE` |
+| P12 mobile hardening | `BLOCKED` on physical-device checks |
+| P13 release candidate | `BLOCKED` on staging prerequisites |
+| P14 acceptance | `BLOCKED` on staging and player observation |
+| P15 production | `NOT_STARTED` |
+
+## Local MVP handoff
+
+The owner approved the implemented gameplay and product direction for the local handoff. The tested candidate remains `52ecef532e6391219883068044db655190809c06` on `feat/p12-release-preparation`. Changes after that revision are confined to this status record.
+
+The workspace archive is `../light-hunt-handoff/52ecef5/` relative to the repository root. It contains separate `dist/` and `dist-edge/` outputs, the lockfile, license notices, the tested Edge adapter, prior browser and performance evidence, and the complete local rollback rehearsal. The SHA-256 of `dist-edge/manifest.json` is `61e3d91835899b24a45aec7bd3e0b090c546ba64fca8b53dc3e05483485a8d7f`. Its origin is the local fixture `https://p02-assets.test`. A later staging build needs its own identity and verification. The archive stays outside Git on this workspace and depends on workspace retention.
+
+To start the preserved build from this repository on the current Linux x64 host, run the command below. Stop the existing preview with Ctrl+C before restarting. Reopen `http://127.0.0.1:4189/` in the same browser profile to use its saved progress. Add `?lang=en` for an English visit.
+
+```sh
+archive=../light-hunt-handoff/52ecef5
+"$archive/runtime/node" "$archive/edge/local.mjs" 4189
+```
+
+The existing 136 unit, 36 Edge contract and 42 Chromium results apply to the preserved bytes. The handoff matched the original artifact hashes, restarted the archived adapter, checked the entry and all eight asset responses plus GET and HEAD readiness, and verified the archived rollback rehearsal. A fresh Chromium profile loaded Persian and Vazirmatn, switched to English, and entered the first mission. The preview uses the archived Node 26.13.1 runtime.
+
+Physical Android Chrome and iPhone Safari performance, touch and camera comfort, the live P02 ArvanCloud probe, P13 staging deployment and rollback, P14 staging player acceptance, and P15 authorized production release remain deferred. The software-rendered measurements below still miss the 30 FPS target.
+
+## P03 checkpoint
+
+Implemented deterministic mission state and the active-time clock. Unit tests cover the three target fixtures, the 25-light result at second 73, the exact deadline under different frame schedules, pause, unique collection, exhausted opportunities, and same-seed retry. `npm run test:unit`, strict TypeScript and lint passed. Next in the authorized local range is P04.
+
+## P04 checkpoint
+
+The firefly lights a small area of the clearing. Pointer or keyboard input can find the opening, and releasing within the displayed ring enters the drop state. Chromium covered near-boundary release, invalid release with the clock still running, capture outside the playfield, pause, focus loss, resize and two-finger cancellation. The capture shows the release cue at an emulated 390 × 844 viewport. [Ready to release](evidence/p04-ready.png)
+
+## P05 checkpoint
+
+One distance-sampled curve connects the opening to a separate forest exit. The chase camera follows the centerline. The drop, ready and exit states freeze the clock. Geometry tests checked the camera seams, wall clearance and firefly framing in portrait and landscape. Chromium checked pause, resize and repeated rides on the same canvas. A 12-frame SwiftShader sample on the workspace host had a median interval of 150 ms. Physical-phone performance remains unmeasured. [Entry](evidence/p05-entry.png) · [Travel](evidence/p05-travel.png) · [Exit](evidence/p05-exit.png)
+
+## P06 checkpoint
+
+Fresh mouse, touch or keyboard input starts the tunnel. The firefly advances automatically while the player steers across the tunnel. Swept collision records first contact with each of 12 lights. Confirmed pickups update the score, flash and play a short note. The ride returns to the clearing and offers a same-layout retry.
+
+Strict TypeScript and lint passed. `npm run test:unit` passed 23 tests, `npm run test:edge` passed 29, and `npm run test:browser:edge` passed 14 through the local Edge adapter. All seven gameplay browser tests passed again after the final keyboard timing fix. Chromium collected 4 of 12 by staying centered and 12 of 12 by steering. The browser suite also checked touch lift and recontact, pause, and a long frame that spans the end of travel and the return while charging only the active time. The local production preview emitted four Web Audio notes on the four-pickup keyboard run. [Emulated tunnel](evidence/p06-tunnel.png) · [Emulated result](evidence/p06-result.png)
+
+## P07 checkpoint
+
+The 25-of-36 mission now plays through three openings with a 90-second active clock. Chromium drove the 8+9+8 win at active second 73, checked that used openings stay shut and verified free retry with the same layout. The reducer and browser checks cover deadline and exhausted-opportunity outcomes. Camera tests verified the added routes in portrait and landscape.
+
+## P08 checkpoint
+
+The campaign advances through targets 22, 25 and 28. Each mission has three seeded tunnels and 90 active seconds. All 3,000 sampled layouts reproduced from their seed and allowed base steering to reach every light. The longest full route in the validation sweep took 29.197 active seconds. Geometry checks covered all nine template and anchor combinations in portrait and landscape. Chromium won missions 1 and 2 and opened mission 3 with its correct target and fresh clock.
+
+## P09 checkpoint
+
+A winning frame saves the elixir delivery and restoration before the return animation. The third win restores the last part of the forest, steadies the guardian’s torch and records the one-time 12-crystal reward. Nine save tests covered reload, duplicate completion, competing tabs, and storage failures. Chromium won all three missions, reloaded at the winning frame and during delivery, and verified the single reward and progressive restoration.
+
+## P10 checkpoint
+
+Purchasing the 10% exploration upgrade leaves 4 crystals, or the 10% collection upgrade leaves 2. Ownership and balance survive reload. Practice uses the chosen mission’s original darkness, time and target. It records a best score for that mission and equipment while preserving story progress and currency.
+
+Strict TypeScript and lint passed. All 121 unit cases, 29 Edge contract cases and 26 Chromium cases passed across the first runs and focused reruns. Chromium completed the campaign and a 22-light practice run and exercised both purchases. Controlled cases checked both 10% radius effects. The slow host caused initial setup and geometry timeouts. The retry test now checks the saved layout identity and repeat collection directly. P06 device acceptance and the P02 live probe remain open.
+
+## P11-A difficulty checkpoint
+
+For new story assignments, entrances appear at 1.58 ground units instead of 1.86. The same seeded light trails call for 14% more sideways travel. The release ring, collision reach, forward speed, clock, mission targets and economy retain their P10 values. `forest-routes-2` identifies the tuned layouts. Previously assigned missions and their practice records still use their saved version and seed.
+
+The same-seed comparison on mission 3 found 14 lights within reach of a centered flight in P10 and 12 after tuning. A model using base equipment, a 250 ms steering delay and a 0.10-unit aiming offset reached all 36 on each of the three campaign seeds. The existing validator checked 3,000 tuned seeds, with the slowest direct route at 29.197 active seconds. Archived P10 saves verified unfinished layouts, progress, upgrade ownership, both practice records and reward claims. These measurements support owner difficulty review. Perceived difficulty and physical-device comfort still need player feedback. The live P02 probe remains open.
+
+Strict TypeScript, lint and 43 focused unit cases passed. Seven Chromium cases passed across focused runs. They checked the visible entrance and release boundary, same-layout retry and deadline, three campaign wins with reload and one-time reward, and upgraded practice.
+
+## P11-B presentation checkpoint
+
+The approved procedural firefly, forest, tunnel walls and owl remain the visual reference. New presentation assets are project-authored meshes, CSS icons and synthesized Web Audio cues. The firefly carries a visible elixir, the restored area brightens over 1.4 seconds and the guardian celebrates beside a steady final torch. Reduced motion displays each finished restoration immediately. Sound, reduced motion and pointer sensitivity save in the existing profile. The untimed tutorial uses the existing controls and leaves story progress intact.
+
+The production build, strict TypeScript, lint and 37 focused unit cases passed. All 31 distinct Chromium cases passed across focused runs. They covered an eight-minute tutorial wait followed by keyboard completion, muted pickups and audio activation, manual pause across device preference changes, Persian landscape and narrow portrait layouts, and the three campaign wins with reload and reward checks. Chromium pixel samples verified gradual restoration and an immediate settled view with reduced motion. Physical-device steering, motion comfort and listening checks remain open alongside the P02 live ArvanCloud probe.
+
+## Final P11 UI/UX checkpoint
+
+A Chromium playthrough of `2f1852d` found menu actions below the phone viewport, briefing controls exposed behind the card, and shop feedback clipped after purchase. The menu now fits its actions and save notice on the first screen at the checked sizes. Native dialogs keep pointer and keyboard focus inside and return focus on Back or Escape. Briefings separate the light target, active time and tunnel count. Failure feedback suggests what to try on the next run. The guardian result has one clear next action. The shop keeps purchase confirmation above the choices and explains the shortfall on the remaining upgrade.
+
+The production build, strict TypeScript, lint and 14 focused Chromium cases passed across two runs. The isolated phone-menu check passed after a concurrent headless startup timeout. Before and after, a full Chromium playthrough covered the tutorial, failure and retry, wins at 22/25/28 lights, the 12-crystal reward, an 8-crystal purchase, and 22-light practice. The final saved profiles matched byte for byte. Layout checks covered English and Persian, emulated touch, keyboard focus, 48px controls, and portrait and landscape sizes down to 320×568 and 568×320. Sampled text and focus contrast pairs ranged from 7.3:1 to 15.5:1. Physical-device testing remains open for P12, and the P02 live ArvanCloud probe remains pending.
+
+### Before and after screenshots
+
+| Screen | P11-B baseline | Final UI/UX pass |
+| --- | --- | --- |
+| Phone menu | [Before](evidence/p11-ux/menu-320-before.png) | [After](evidence/p11-ux/menu-320-after.png) |
+| Mission briefing | [Before](evidence/p11-ux/briefing-390-before.png) | [After](evidence/p11-ux/briefing-390-after.png) |
+| Failure and retry | [Before](evidence/p11-ux/failed-320-before.png) | [After](evidence/p11-ux/failed-320-after.png) |
+| Guardian reward | [Before](evidence/p11-ux/guardian-reward-320-before.png) | [After](evidence/p11-ux/guardian-reward-320-after.png) |
+| Shop after purchase | [Before](evidence/p11-ux/shop-owned-320-before.png) | [After](evidence/p11-ux/shop-owned-320-after.png) |
+
+## Persian-first refinement
+
+Fresh browsers load Persian RTL. A supported URL language takes precedence for that visit, and Settings saves an explicit language choice with the existing v1 profile. Added one 111,152-byte Vazirmatn v33.003 WOFF2 with its upstream OFL notice. A rendered desktop and mobile review of ChildXDesign informed the periwinkle surround, mint and gold controls, and rounded goal cards. The forest canvas and game rules retain their approved behavior. [ChildXDesign reference](https://childxdesign.com/) · [Vazirmatn release](https://github.com/rastikerdar/vazirmatn/releases/tag/v33.003)
+
+Mobile screenshots from the running Persian preview show the [main menu](evidence/persian-theme/menu.png), [mission briefing](evidence/persian-theme/briefing.png) and [active tunnel HUD](evidence/persian-theme/tunnel-hud.png).
+
+The production and local Edge builds, strict TypeScript, lint, 19 profile tests, 36 Edge route tests, and 14 distinct Chromium cases passed. Chromium identified the same-origin font as the source of the Persian menu, briefing and HUD glyphs. The locale checks covered default and visit-only language, saved selection, unsupported-language fallback, and entry-module recovery. Switching language preserved a completed campaign, crystal balance, upgrade, and practice record. The campaign was also replayed through its one-time reward and reload. Checks used emulated mobile portrait and landscape and a desktop viewport. P12 physical-device checks and the live P02 ArvanCloud probe remain open.
+
+## P12 hardening
+
+Story and practice wait for fresh service readiness before starting or retrying. A detected interruption freezes time and collection and clears old input. Play resumes after a valid response and the player's Resume action. Reloading after WebGL loss restores saved progress. Strict TypeScript, lint, 136 unit checks and 36 Edge contract checks passed.
+
+The renderer keeps one animation loop and reuses the drawing buffer on duplicate resize events. Across 60 paired tunnel renders, sampled pixels matched and peak draws fell from 55 to 33. Six create/dispose cycles returned to zero view geometries and shader programs and one shared texture. A five-minute Chromium 159 SwiftShader run at a 716 × 1198 drawing buffer made 14 tunnel returns. Median frame time was 683.3 ms, p95 was 4,016.6 ms and the largest stall was 42.9 seconds on a heavily swapping host. This emulated run missed the 33.3 ms p95 target. Named physical Android Chrome and iPhone Safari checks are `NOT_RUN`.
+
+## P13 and P14 release preparation
+
+The clean source revision is `52ecef532e6391219883068044db655190809c06`. The local candidate uses Node 26.13.1, npm 11.20.0 and the reserved test asset origin. Its browser SHA-256 is `9b9b09ca78d37b8ac0563f6f646efd87310f9526a070a585a717551996eb972b`. Its worker SHA-256 is `40c0bb5c203b850a2e580826eb9d02794ffa58252cc5aba776bd5b890f03094f`. The release manifest binds both to the source and lockfile. [Build, staging and rollback instructions](../edge/README.md)
+
+All 42 Chromium checks passed on the exact candidate using `playwright test --config playwright.edge.config.ts`. They exercised the complete campaign, profile reload, the one-time guardian reward, purchases, practice and language along with input, network and graphics recovery.
+
+An independent offline install and clean rebuild reproduced both artifact directories byte for byte. In a local worker rehearsal, the candidate and recovery workers both served the eight distinct old and new JavaScript paths with the expected SHA-256 digests. Recovery restored the approved P11 entry. Both browser releases share the same save code and schema. Live provider execution, HTTPS delivery and staging rollback still need evidence from the authorized target.
+
+For P14, rerun the acceptance catalog against the exact hosted candidate. Record desktop and physical mobile sessions and owner-authorized player observations for learning the controls, understanding failure, retrying, camera comfort, upgrades and the restoration payoff. Keep anonymous notes and use adult supervision for children. The hosted and player checks are `NOT_RUN`. [Acceptance catalog](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#f-acceptance-catalog-and-requirement-traceability)
 
 ## P02 evidence
 

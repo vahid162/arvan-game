@@ -51,8 +51,10 @@ export function createHandler({ html, assets, origin, fetchAsset = fetch }: Hand
     }
 
     const url = new URL(request.url);
+    if (url.pathname === '/' && (!url.search || /^\?lang=[^&]*$/.test(url.search))) {
+      return reply(200, html, 'text/html; charset=utf-8', 'no-cache');
+    }
     if (url.search) return reply(400, 'Query parameters are not supported\n');
-    if (url.pathname === '/') return reply(200, html, 'text/html; charset=utf-8', 'no-cache');
     if (url.pathname === '/health') return reply(200, '{"status":"ok"}\n', 'application/json; charset=utf-8');
 
     const type = allowed.get(url.pathname);

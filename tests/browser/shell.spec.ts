@@ -53,7 +53,7 @@ test('a fresh mobile viewport loads the production scene without errors', async 
   });
   const shell = page.locator('#shell');
   try {
-    await page.goto('/', { waitUntil: 'commit' });
+    await page.goto('/?lang=en', { waitUntil: 'commit' });
     await expect(shell).toHaveAttribute('data-state', 'loading');
     await expect(page.getByRole('status')).toContainText(/load/i);
   } finally {
@@ -75,7 +75,7 @@ test.describe('high-density viewport', () => {
   test.use({ deviceScaleFactor: 3 });
 
   test('resizing keeps the same scene canvas and WebGL context at capped density', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?lang=en');
     await expect(page.locator('#shell')).toHaveAttribute('data-state', 'ready');
     const original = await page.evaluateHandle(() =>
       document.querySelector<HTMLCanvasElement>('#glade')!.getContext('webgl2'));
@@ -111,7 +111,7 @@ test('reduced motion starts still and the player can resume and pause the scene'
       },
     });
   });
-  await page.goto('/');
+  await page.goto('/?lang=en');
   const canvas = page.locator('#glade');
   const renderedFrame = () => canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL());
   const resume = page.getByRole('button', { name: 'Resume motion' });
@@ -144,7 +144,7 @@ test('missing WebGL 2 gives a readable unsupported state', async ({ page }) => {
       },
     });
   });
-  await page.goto('/');
+  await page.goto('/?lang=en');
   await expect(page.locator('#shell')).toHaveAttribute('data-state', 'unsupported');
   const status = page.getByRole('status');
   await expect(status).toBeVisible();
@@ -166,7 +166,7 @@ test('a transient graphics startup failure shows a message and recovers on reloa
       },
     });
   });
-  await page.goto('/');
+  await page.goto('/?lang=en');
   const shell = page.locator('#shell');
   await expect(shell).toHaveAttribute('data-state', 'failed');
   const status = page.getByRole('status');
@@ -183,7 +183,7 @@ for (const issue of ['missing', 'truncated'] as const) {
     await page.route('**/*.js', (route) => issue === 'missing'
       ? route.abort('failed')
       : route.fulfill({ contentType: 'text/javascript', body: 'const incomplete =' }), { times: 1 });
-    await page.goto('/');
+    await page.goto('/?lang=en');
     const shell = page.locator('#shell');
     await expect(shell).toHaveAttribute('data-state', 'failed');
     await expect(page.getByRole('status')).toContainText(/load/i);

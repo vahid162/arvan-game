@@ -20,9 +20,12 @@ async function readArtifact(file, expectedHash) {
 }
 
 const worker = await readArtifact(new URL('worker.js', output), manifest.workerSha256);
+await readArtifact(new URL('index.html', browser), manifest.entryHtmlSha256);
 const assets = new Map();
-for (const [path, { contentType, sha256 }] of Object.entries(manifest.assets)) {
-  assets.set(path, { contentType, bytes: await readArtifact(new URL(path.slice(1), browser), sha256) });
+for (const [directory, files] of [[browser, manifest.assets], [new URL('retained/', output), manifest.retainedAssets ?? {}]]) {
+  for (const [path, { contentType, sha256 }] of Object.entries(files)) {
+    assets.set(path, { contentType, bytes: await readArtifact(new URL(path.slice(1), directory), sha256) });
+  }
 }
 
 const origin = createServer((request, response) => {
