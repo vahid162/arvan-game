@@ -1,18 +1,30 @@
 # Light Hunt development status
 
-**P01 · COMPLETE** — the browser shell renders a firefly in a responsive WebGL 2 scene. The clean build, static checks, three unit tests and seven browser tests passed on 22 November 2026. [Mobile viewport capture](evidence/p01-mobile.png)
-
-**Next phase** — P02, the minimal ArvanCloud delivery proof, awaits a separate phase request. Its live probe also needs an authorized target. [P02 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p02--prove-the-smallest-arvancloud-delivery-path)
+**P02 · BLOCKED on the live probe** — the browser and Edge artifacts passed local verification. P02 completion requires actual ArvanCloud evidence. The live probe awaits an approved account, target, asset origin and spending boundary. [P02 work package](Light_Hunt_Codex_Phased_Implementation_Plan_EN.md#p02--prove-the-smallest-arvancloud-delivery-path) · [Staging probe](../edge/README.md#staging-probe-after-approval)
 
 | Phase | State |
 | --- | --- |
 | P00 | `COMPLETE` |
 | P01 | `COMPLETE` |
-| P02–P15 | `NOT_STARTED` |
+| P02 | `BLOCKED` |
+| P03–P15 | `NOT_STARTED` |
+
+## P02 evidence
+
+On 22 November 2026, a clean checkout of `aeb2d59` on Ubuntu 22.04 x64 with Node 26.13.1 and npm 11.20.0 installed 52 packages from the lockfile using `npm ci --offline --no-audit --no-fund` and a populated npm cache. The independent review caught a build path error for checkouts containing spaces and a missing artifact integrity check. The final build passed from a path containing a space, and the preview rejected locally altered worker and notice files.
+
+| Check | Observed result |
+| --- | --- |
+| Builds and static checks | `PASS`. `npm run lint` and strict TypeScript passed. `npm run build:edge` produced byte-identical browser and Edge outputs in two checkouts. The separate worker is about 4.6 kB. Vite still reports the 565 kB minified renderer size advisory. |
+| HTTP contract (T55–T56, local) | `PASS`. All 29 `npm run test:edge` cases passed. The actual loopback HTTP preview returned the expected GET/HEAD status, MIME and cache headers, including 400, 404 and 405 behavior. Controlled origin responses verified rejection of redirects, bad MIME, proxy loops and network failure. |
+| Browser delivery and notice (G30, local) | `PASS`. All three `npm run test:unit` cases and seven `npm run test:browser:edge` tests passed. HTTP response hashes matched the manifest for the JS, CSS, 580-byte versioned PNG and notice. The notice contained the complete pinned Three.js MIT license. |
+| Runtime and cache on ArvanCloud | `BLOCKED`. The live request, upload, deployed runtime, HTTPS origin, provider execution evidence and account limits await an approved target. T49's mission readiness behavior remains scheduled for P12. |
+
+The local manifest SHA-256 is `601982ca79fdb401110937c54c10e5f0b2b451614bebeccd60ebadbe32f43286`. The local `worker.js` SHA-256 is `2883cd953b40d62e846c749bbd34e551ef3c559dce1de95896db78380efa6acb`. The staging build will bind the approved origin and record its own manifest and worker hash.
 
 ## P01 evidence
 
-P01 starts at the [merged P00 baseline](https://github.com/vahid162/arvan-game/pull/1). Source and test revision `56dfd0f` contains the browser shell, the Three.js firefly and the tests. The [developer instructions](../README.md#developer-setup) reproduce the preview.
+P01 starts at the [merged P00 baseline](https://github.com/vahid162/arvan-game/pull/1). The published source and test revision has the same file tree as the local revision `56dfd0f` used for the original checks. [Published P01 revision](https://github.com/vahid162/arvan-game/commit/2e221f89cb7d084c1f7a8f408e618949d7fc8c0b) · [Developer instructions](../README.md#developer-setup)
 
 | Check | Observed result |
 | --- | --- |
